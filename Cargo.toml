@@ -1,0 +1,61 @@
+[workspace]
+resolver = "2"
+members = [".", "deb", "client", "cli"]
+default-members = [".", "cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90.0"
+license = "MIT OR Apache-2.0"
+authors = ["Sigma Tactical Group contributors <https://github.com/sigmatactical-org>"]
+publish = false
+
+[workspace.dependencies]
+ar = "0.9"
+bytes = "1"
+clap = { version = "4.5", features = ["derive", "env"] }
+debversion = "0.4"
+flate2 = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sigma-updates-client = { path = "client" }
+sigma-updates-deb = { path = "deb" }
+tar = "0.4"
+thiserror = "2"
+ureq = "2.12"
+xz2 = "0.1"
+
+[package]
+name = "sigma-updates"
+description = "Debian package index and OTA catalog for Sigma Racer Wingman"
+repository = "https://github.com/sigmatactical-org/updates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "sigma-updates"
+path = "src/main.rs"
+
+[dependencies]
+askama = "0.16.0"
+bytes = { workspace = true }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git" }
+sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", default-features = false, features = ["askama", "warp"] }
+sigma-updates-deb = { workspace = true }
+thiserror = { workspace = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
+warp = { version = "0.4", features = ["server"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true

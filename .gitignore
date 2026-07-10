@@ -1,0 +1,7 @@
+/target/
+/build/
+Cargo.lock
+*.swp
+.DS_Store
+# Keep published .deb files; ignore local scratch builds
+/packages/*.build

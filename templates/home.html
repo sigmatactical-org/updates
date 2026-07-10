@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .updates-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem; }
+  .updates-tabs label {
+    cursor: pointer;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.35rem;
+    color: var(--bs-secondary-color);
+    background: transparent;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .updates-tabs label:hover { color: var(--bs-body-color); border-color: rgba(255,255,255,0.28); }
+  .updates-panel { display: none; }
+  #tab-packages:checked ~ .updates-tabs label[for="tab-packages"],
+  #tab-publish:checked ~ .updates-tabs label[for="tab-publish"],
+  #tab-api:checked ~ .updates-tabs label[for="tab-api"] {
+    color: var(--bs-body-color);
+    border-color: rgba(255,138,58,0.55);
+    background: rgba(255,58,0,0.08);
+  }
+  #tab-packages:checked ~ .updates-panels #panel-packages,
+  #tab-publish:checked ~ .updates-panels #panel-publish,
+  #tab-api:checked ~ .updates-panels #panel-api { display: block; }
+  .updates-tabs-input { position: absolute; opacity: 0; pointer-events: none; }
+  .api-endpoint code { user-select: all; }
+</style>
+{% endblock %}
+
+{% block main_class %}updates-main{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <header class="mb-3">
+    <h1 class="mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">
+      Debian packages published by this service · {{ package_count }} package{% if package_count != 1 %}s{% endif %}
+    </p>
+  </header>
+
+  <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-packages" checked />
+  <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-publish" />
+  <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-api" />
+
+  <div class="updates-tabs" role="tablist" aria-label="Updates sections">
+    <label for="tab-packages" role="tab">Packages</label>
+    <label for="tab-publish" role="tab">Publish</label>
+    <label for="tab-api" role="tab">API</label>
+  </div>
+
+  <div class="updates-panels">
+    <section id="panel-packages" class="updates-panel" role="tabpanel" aria-labelledby="tab-packages">
+      {% if package_count == 0 && query_empty %}
+      <p class="text-secondary">
+        No <code>.deb</code> files in <code>{{ packages_dir }}</code> yet. Publish one from the
+        Publish tab, or drop files into that directory.
+      </p>
+      {% else %}
+      <form class="row g-2 align-items-end mb-3" method="get" action="/">
+        <div class="col-md-8">
+          <label class="form-label" for="pkg-q">Search</label>
+          <input
+            class="form-control"
+            type="search"
+            id="pkg-q"
+            name="q"
+            value="{{ query }}"
+            placeholder="name, filename, version, arch…"
+            autocomplete="off"
+          />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="pkg-per-page">Per page</label>
+          <select class="form-select" id="pkg-per-page" name="per_page">
+            <option value="25"{% if per_page == 25 %} selected{% endif %}>25</option>
+            <option value="50"{% if per_page == 50 %} selected{% endif %}>50</option>
+            <option value="100"{% if per_page == 100 %} selected{% endif %}>100</option>
+            <option value="200"{% if per_page == 200 %} selected{% endif %}>200</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-outline-light w-100">Apply</button>
+        </div>
+        <input type="hidden" name="page" value="1" />
+      </form>
+
+      {% if packages.is_empty() %}
+      <p class="text-secondary">No packages match <code>{{ query }}</code>.</p>
+      {% else %}
+      <p class="text-secondary small mb-2">
+        Showing {{ range_start }}–{{ range_end }} of {{ package_count }}
+        · page {{ page }} / {{ total_pages }}
+      </p>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Package</th>
+              <th scope="col">Version</th>
+              <th scope="col">Arch</th>
+              <th scope="col">Size</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pkg in packages %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ pkg.name }}</div>
+                <div class="text-secondary small">{{ pkg.filename }}</div>
+              </td>
+              <td><code>{{ pkg.version }}</code></td>
+              <td>{{ pkg.architecture }}</td>
+              <td class="text-secondary">{{ pkg.size_label }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ pkg.download_path }}">Download</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Package pages">
+        {% if has_prev %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ prev_href }}">Previous</a>
+        {% else %}
+        <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Previous</span>
+        {% endif %}
+        <span class="text-secondary small">Page {{ page }} of {{ total_pages }}</span>
+        {% if has_next %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ next_href }}">Next</a>
+        {% else %}
+        <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Next</span>
+        {% endif %}
+      </nav>
+      {% endif %}
+      {% endif %}
+    </section>
+
+    <section id="panel-publish" class="updates-panel" role="tabpanel" aria-labelledby="tab-publish">
+      <div
+        id="updates-publish"
+        data-identity-base="{{ identity_base }}"
+        data-sign-in-url="{{ sign_in_url }}"
+        data-publish-api-url="{{ publish_api_url }}"
+      >
+        <p class="text-secondary mb-3">
+          Upload requires an Identity session with the <code>sigma-admin</code> realm role.
+          Requests go through Identity’s OAuth-protected <code>/api</code> proxy.
+        </p>
+        <p id="publish-auth-pending" class="text-secondary">Checking sign-in…</p>
+        <div id="publish-form-wrap" class="d-none">
+          <div class="mb-3">
+            <label class="form-label" for="publish-file">Debian package (<code>.deb</code>)</label>
+            <input class="form-control" type="file" id="publish-file" accept=".deb,application/vnd.debian.binary-package" />
+          </div>
+          <button type="button" class="btn btn-outline-light" id="publish-submit">Publish package</button>
+          <p id="publish-status" class="small mt-3 mb-0" role="status"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-api" class="updates-panel" role="tabpanel" aria-labelledby="tab-api">
+      <p class="text-secondary mb-3">
+        Machine-readable catalog for Wingman OTA clients and package tooling. Base:
+        <code>{{ public_base }}</code>
+      </p>
+
+      <div class="table-responsive mb-4">
+        <table class="table table-sm api-endpoint">
+          <thead>
+            <tr>
+              <th scope="col">Method</th>
+              <th scope="col">Path</th>
+              <th scope="col">Auth</th>
+              <th scope="col">Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/health</code></td>
+              <td>public</td>
+              <td>Liveness</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/packages</code></td>
+              <td>public</td>
+              <td>JSON package index (<code>?page=&amp;per_page=&amp;q=</code>; default 50/page, max 500)</td>
+            </tr>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/v1/packages</code></td>
+              <td>Identity / internal token</td>
+              <td>Publish a <code>.deb</code> (<code>X-Package-Filename</code> + body)</td>
+            </tr>
+            <tr>
+              <td><code>DELETE</code></td>
+              <td><code>/v1/packages/{file}.deb</code></td>
+              <td>Identity / internal token</td>
+              <td>Remove a published package</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/packages/{file}.deb</code></td>
+              <td>public</td>
+              <td>Download a package</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/channels</code></td>
+              <td>public</td>
+              <td>RAUC channel names</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/channel/{name}/latest</code></td>
+              <td>public</td>
+              <td>Latest RAUC release metadata for a channel</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/channel/{name}/bundle/{file}</code></td>
+              <td>public</td>
+              <td>RAUC bundle bytes (when published)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="h5">Publish examples</h2>
+      <pre class="border rounded p-3 bg-black bg-opacity-25"><code># Browser / admin: Identity session + CSRF → {{ publish_api_url }}
+# CI / mesh (shared secret):
+curl -X POST {{ public_base }}/v1/packages \
+  -H "Authorization: Bearer $SIGMA_INTERNAL_TOKEN" \
+  -H "X-Package-Filename: mypkg_1.0.0-1_all.deb" \
+  --data-binary @mypkg_1.0.0-1_all.deb</code></pre>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/js/publish.js" defer></script>
+{% endblock %}
