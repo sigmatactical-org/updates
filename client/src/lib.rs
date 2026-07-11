@@ -1,8 +1,10 @@
 //! HTTP client for sigma-updates package index.
 
+mod oidc;
 mod push;
 mod types;
 
+pub use oidc::{client_credentials_token, token_url_from_issuer};
 pub use push::{
     MissingDependency, PushPlan, PushReport, check_packages, collect_deb_paths, load_local_packages,
     plan_push, push_packages,

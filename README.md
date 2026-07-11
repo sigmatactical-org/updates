@@ -73,10 +73,11 @@ intentionally publish incomplete sets.
 
 ## Publishing packages
 
-Writes are authenticated the same way as catalog/store:
+Writes go through one of:
 
 1. **Browser (OAuth)** — Sign in via Identity with realm role `sigma-admin`, open the **Publish** tab, upload a `.deb`. The page posts to Identity `/api/v1/packages` (session + CSRF); Identity requires admin and forwards with `x-sigma-internal-token`.
-2. **CI / automation** — call updates directly with the shared secret:
+2. **CI / OIDC client-credentials** — `sigma-updates-cli` obtains a Keycloak access token for client `sigma-updates-ci` (service account with `sigma-admin`) and posts to Identity `/api/v1/packages` (Bearer JWT; no CSRF). Identity forwards with `x-sigma-internal-token`.
+3. **Direct shared secret (local/dev)** — call updates with `SIGMA_INTERNAL_TOKEN`:
 
 ```bash
 curl -X POST "$SIGMA_UPDATES_URL/v1/packages" \
@@ -87,6 +88,21 @@ curl -X POST "$SIGMA_UPDATES_URL/v1/packages" \
 
 `GET` list/download stays public for clients.
 
+### CLI (OIDC → Identity)
+
+```bash
+export SIGMA_UPDATES_URL=https://identity.sigma.localtest.me:30443/api
+export SIGMA_OIDC_CLIENT_ID=sigma-updates-ci
+export SIGMA_OIDC_CLIENT_SECRET=dev-sigma-updates-ci-secret-change-me
+export SIGMA_OIDC_ISSUER=https://keycloak.sigma.localtest.me:30443/realms/multcorp
+
+cargo run -p sigma-updates-cli -- push ./packages --allow-missing-deps
+```
+
+Or pass flags: `--oidc-client-id`, `--oidc-client-secret`, `--oidc-token-url` / `--oidc-issuer`.
+
+Direct updates (no Identity) still works with `--token` / `SIGMA_INTERNAL_TOKEN` and `--url` pointing at the updates service.
+
 ### Wingman hardware feed (i.MX 8M Plus)
 
 **Policy:** publish **hardware** Yocto debs only (`MACHINE=sigma-racer-wingman-imx8mp`).
@@ -96,23 +112,28 @@ local test images only.
 #### Small sets (CLI)
 
 ```bash
-export SIGMA_UPDATES_URL=http://updates.sigma.localtest.me:30080
-export SIGMA_INTERNAL_TOKEN=dev-internal-token-32chars-minimum!!
+# Via Identity (preferred for CI)
+export SIGMA_UPDATES_URL=https://identity.sigma.localtest.me:30443/api
+export SIGMA_OIDC_CLIENT_ID=sigma-updates-ci
+export SIGMA_OIDC_CLIENT_SECRET=…
+export SIGMA_OIDC_ISSUER=https://keycloak.sigma.localtest.me:30443/realms/multcorp
 
-# Example: M7 firmware only
-cargo run -p sigma-updates-cli -- push \
-  /path/to/sigma-racer-sidearm/dist/sigma-racer-sidearm-firmware_0.1.0-r0_all.deb \
-  --allow-missing-deps
-
-# Or a handful of product packages
 cargo run -p sigma-updates-cli -- push \
   /path/to/build/tmp/deploy/deb/cortexa53-crypto-mx8mp/sigma-racer-cluster_git-r0_arm64.deb \
   /path/to/build/tmp/deploy/deb/cortexa53-crypto/sigma-racer-vehicle_1.0-r0_arm64.deb \
   --allow-missing-deps
+
+# Or direct to updates with shared secret (local)
+export SIGMA_UPDATES_URL=http://updates.sigma.localtest.me:30080
+export SIGMA_INTERNAL_TOKEN=dev-internal-token-32chars-minimum!!
+cargo run -p sigma-updates-cli -- push ./packages --allow-missing-deps
 ```
 
 `--allow-missing-deps` is normal for Yocto packages: rootfs deps (`libc6`,
 `weston`, …) are not expected to live in the updates index.
+
+Wingman release CI runs `embedded/sigma-racer-wingman/scripts/ci/publish-product-debs.sh`
+after the imx8mp image build.
 
 #### Full deploy tree (thousands of `.deb`)
 

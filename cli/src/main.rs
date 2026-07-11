@@ -5,7 +5,8 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use sigma_updates_client::{
-    UpdatesClient, check_packages, collect_deb_paths, push_packages,
+    UpdatesClient, check_packages, client_credentials_token, collect_deb_paths, push_packages,
+    token_url_from_issuer,
 };
 use sigma_updates_deb::VersionConstraint;
 
@@ -13,13 +14,30 @@ use sigma_updates_deb::VersionConstraint;
 #[command(name = "sigma-updates-cli")]
 #[command(about = "Publish and inspect packages on sigma-updates")]
 struct Cli {
-    /// Base URL of the updates service (e.g. http://updates.sigma.localtest.me:30080)
+    /// Base URL of the updates service or Identity `/api` proxy
+    /// (e.g. http://updates.sigma.localtest.me:30080 or https://identity…/api)
     #[arg(long, env = "SIGMA_UPDATES_URL", global = true)]
     url: Option<String>,
 
-    /// Shared secret for publish/delete (`SIGMA_INTERNAL_TOKEN`)
+    /// Shared secret for direct updates publish/delete (`SIGMA_INTERNAL_TOKEN`)
     #[arg(long, env = "SIGMA_INTERNAL_TOKEN", global = true)]
     token: Option<String>,
+
+    /// OIDC token endpoint (client-credentials). Overrides issuer derivation.
+    #[arg(long, env = "SIGMA_OIDC_TOKEN_URL", global = true)]
+    oidc_token_url: Option<String>,
+
+    /// OIDC issuer URL used to derive the token endpoint when `--oidc-token-url` is unset
+    #[arg(long, env = "SIGMA_OIDC_ISSUER", global = true)]
+    oidc_issuer: Option<String>,
+
+    /// OIDC confidential client id (service account)
+    #[arg(long, env = "SIGMA_OIDC_CLIENT_ID", global = true)]
+    oidc_client_id: Option<String>,
+
+    /// OIDC confidential client secret
+    #[arg(long, env = "SIGMA_OIDC_CLIENT_SECRET", global = true)]
+    oidc_client_secret: Option<String>,
 
     #[command(subcommand)]
     command: Command,
@@ -61,14 +79,73 @@ fn main() -> ExitCode {
     }
 }
 
+fn resolve_auth_token(cli: &Cli) -> Result<Option<String>, String> {
+    let has_oidc = cli.oidc_client_id.as_ref().is_some_and(|s| !s.trim().is_empty())
+        || cli
+            .oidc_client_secret
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty())
+        || cli.oidc_token_url.as_ref().is_some_and(|s| !s.trim().is_empty())
+        || cli.oidc_issuer.as_ref().is_some_and(|s| !s.trim().is_empty());
+
+    if has_oidc {
+        let client_id = cli
+            .oidc_client_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "OIDC auth requires --oidc-client-id / SIGMA_OIDC_CLIENT_ID".to_string())?;
+        let client_secret = cli
+            .oidc_client_secret
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                "OIDC auth requires --oidc-client-secret / SIGMA_OIDC_CLIENT_SECRET".to_string()
+            })?;
+        let token_url = if let Some(url) = cli
+            .oidc_token_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            url.to_string()
+        } else if let Some(issuer) = cli
+            .oidc_issuer
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            token_url_from_issuer(issuer)
+        } else {
+            return Err(
+                "OIDC auth requires --oidc-token-url / SIGMA_OIDC_TOKEN_URL or --oidc-issuer / SIGMA_OIDC_ISSUER"
+                    .into(),
+            );
+        };
+        let token = client_credentials_token(&token_url, client_id, client_secret)
+            .map_err(|e| e.to_string())?;
+        return Ok(Some(token));
+    }
+
+    Ok(cli
+        .token
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty()))
+}
+
 fn run() -> Result<(), String> {
     let cli = Cli::parse();
     let url = cli
         .url
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "http://127.0.0.1:8080".into());
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("http://127.0.0.1:8080")
+        .to_string();
     let mut client = UpdatesClient::new(url);
-    if let Some(token) = cli.token.filter(|s| !s.trim().is_empty()) {
+    if let Some(token) = resolve_auth_token(&cli)? {
         client = client.with_token(token);
     }
 
