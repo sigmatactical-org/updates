@@ -9,6 +9,7 @@ use warp::reply::Response;
 use warp::{Filter, Rejection, Reply};
 
 use crate::catalog::Catalog;
+use crate::dbc::{self, PublishError as DbcPublishError};
 use crate::packages::{self, PublishError};
 
 #[derive(Serialize)]
@@ -25,6 +26,17 @@ struct ChannelsResponse {
 #[derive(Serialize)]
 struct PackagesResponse {
     packages: Vec<packages::DebPackage>,
+    total: usize,
+    page: u32,
+    per_page: u32,
+    total_pages: u32,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    query: String,
+}
+
+#[derive(Serialize)]
+struct DbcResponse {
+    files: Vec<dbc::DbcFile>,
     total: usize,
     page: u32,
     per_page: u32,
@@ -83,6 +95,17 @@ fn publish_status(err: &PublishError) -> StatusCode {
         PublishError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
         PublishError::NotFound => StatusCode::NOT_FOUND,
         PublishError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+fn dbc_publish_status(err: &DbcPublishError) -> StatusCode {
+    match err {
+        DbcPublishError::InvalidFilename
+        | DbcPublishError::EmptyBody
+        | DbcPublishError::InvalidContent(_) => StatusCode::BAD_REQUEST,
+        DbcPublishError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+        DbcPublishError::NotFound => StatusCode::NOT_FOUND,
+        DbcPublishError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -208,10 +231,83 @@ pub fn routes(
             )
         });
 
+    let dbc_v1 = warp::path!("v1" / "dbc").and(warp::path::end());
+
+    let dbc_list = warp::get()
+        .and(warp::query::<PackageListQuery>())
+        .map(|query: PackageListQuery| {
+            let page = dbc::list_dbc_files_page(
+                query.page.unwrap_or(1),
+                query.per_page.unwrap_or(dbc::DEFAULT_PER_PAGE),
+                query.q.as_deref().unwrap_or(""),
+            );
+            warp::reply::json(&DbcResponse {
+                files: page.files,
+                total: page.total,
+                page: page.page,
+                per_page: page.per_page,
+                total_pages: page.total_pages,
+                query: page.query,
+            })
+            .into_response()
+        });
+
+    let dbc_publish = warp::post()
+        .and(internal_auth())
+        .and(warp::header::optional::<String>("x-dbc-filename"))
+        .and(warp::body::content_length_limit(dbc::MAX_DBC_BYTES))
+        .and(warp::body::bytes())
+        .and_then(
+            |authorization,
+             internal_token,
+             filename_header: Option<String>,
+             body: Bytes| async move {
+                if ensure_internal(authorization, internal_token).is_err() {
+                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
+                }
+                let Some(filename) = filename_header
+                    .map(|s| s.trim().to_owned())
+                    .filter(|s| !s.is_empty())
+                else {
+                    return Ok(json_error(
+                        StatusCode::BAD_REQUEST,
+                        "missing X-Dbc-Filename header",
+                    ));
+                };
+                match dbc::publish_dbc(&filename, &body) {
+                    Ok(file) => Ok(warp::reply::with_status(
+                        warp::reply::json(&file),
+                        StatusCode::CREATED,
+                    )
+                    .into_response()),
+                    Err(err) => Ok(json_error(dbc_publish_status(&err), err.to_string())),
+                }
+            },
+        );
+
+    let dbc_collection = dbc_v1.and(dbc_list.or(dbc_publish));
+
+    let dbc_delete = warp::path!("v1" / "dbc" / String)
+        .and(warp::delete())
+        .and(internal_auth())
+        .and_then(
+            |filename: String, authorization, internal_token| async move {
+                if ensure_internal(authorization, internal_token).is_err() {
+                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
+                }
+                match dbc::delete_dbc(&filename) {
+                    Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
+                    Err(err) => Ok(json_error(dbc_publish_status(&err), err.to_string())),
+                }
+            },
+        );
+
     health
         .or(up)
         .or(pkg_collection)
         .or(pkg_delete)
+        .or(dbc_collection)
+        .or(dbc_delete)
         .or(channels)
         .or(latest)
         .or(bundle)

@@ -3,6 +3,7 @@
 mod api;
 mod catalog;
 mod config;
+mod dbc;
 mod packages;
 mod templates;
 mod web;
@@ -15,6 +16,7 @@ use warp::Reply;
 
 pub use catalog::{Catalog, ChannelRelease};
 pub use config::public_base_url_trimmed as public_base_url;
+pub use dbc::{list_dbc_files, DbcFile};
 pub use packages::{list_packages, DebPackage};
 
 pub fn listen_addr() -> std::net::SocketAddr {

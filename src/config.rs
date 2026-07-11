@@ -65,3 +65,13 @@ pub fn packages_dir() -> std::path::PathBuf {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("packages"))
 }
+
+/// Directory of Sigma Racer `.dbc` schema files (default `./dbc`).
+#[must_use]
+pub fn dbc_dir() -> std::path::PathBuf {
+    std::env::var("UPDATES_DBC_DIR")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("dbc"))
+}

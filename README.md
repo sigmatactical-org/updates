@@ -22,6 +22,10 @@ Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 | `POST` | `/v1/packages` | Publish a `.deb` (`X-Package-Filename` + body; auth required) |
 | `DELETE` | `/v1/packages/{file}.deb` | Remove a package (auth required) |
 | `GET` | `/packages/{file}.deb` | Download a package |
+| `GET` | `/v1/dbc` | JSON page of Sigma Racer `.dbc` schemas (`?page=1&per_page=50&q=`) |
+| `POST` | `/v1/dbc` | Publish a `.dbc` (`X-Dbc-Filename` + body; auth required) |
+| `DELETE` | `/v1/dbc/{file}.dbc` | Remove a schema file (auth required) |
+| `GET` | `/dbc/{file}.dbc` | Download a DBC schema |
 | `GET` | `/v1/channels` | List RAUC channels |
 | `GET` | `/v1/channel/{name}/latest` | Latest RAUC release metadata |
 | `GET` | `/v1/channel/{name}/bundle/{file}` | Bundle bytes (when published) |
@@ -59,6 +63,7 @@ intentionally publish incomplete sets.
 | --- | --- |
 | `PORT` | Listen port (default `8080`) |
 | `UPDATES_PACKAGES_DIR` | Directory of `.deb` files (default `packages`, image: `/app/packages`) |
+| `UPDATES_DBC_DIR` | Directory of Sigma Racer `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
 | `UPDATES_PUBLIC_BASE_URL` | Public base used in `bundle_url` and site links |
 | `UPDATES_DEV_VERSION` | Override the built-in dev channel version |
 | `SIGMA_INTERNAL_TOKEN` | Shared secret for publish/delete (same as other Sigma services) |
@@ -159,6 +164,12 @@ export SIGMA_UPDATES_URL=http://updates.sigma.localtest.me:30080
 export SIGMA_UPDATES_CHANNEL=dev
 export SIGMA_IMAGE_VERSION=0.0.0
 ```
+
+## Brand & artwork
+
+© Sigma Tactical Group. **All rights reserved.**
+
+The Sigma Tactical Group name, logos, marks, artwork, and visual identity are **proprietary**. They are not covered by this repository's source-code license. See [BRANDING.md](BRANDING.md).
 
 ## License
 
