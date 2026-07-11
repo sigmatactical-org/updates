@@ -4,11 +4,13 @@ members = [".", "deb", "client", "cli"]
 default-members = [".", "cli"]
 
 [workspace.package]
+
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90.0"
 license = "MIT OR Apache-2.0"
 authors = ["Sigma Tactical Group contributors <https://github.com/sigmatactical-org>"]
+homepage = "https://sigmatactical.org"
 publish = false
 
 [workspace.dependencies]
@@ -27,6 +29,7 @@ ureq = "2.12"
 xz2 = "0.1"
 
 [package]
+
 name = "sigma-updates"
 description = "Debian package index and OTA catalog for Sigma Racer Wingman"
 repository = "https://github.com/sigmatactical-org/updates"
@@ -35,6 +38,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+homepage.workspace = true
 publish.workspace = true
 
 [[bin]]
