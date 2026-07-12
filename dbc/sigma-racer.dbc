@@ -1,0 +1,35 @@
+VERSION "0.1"
+
+BU_: M7 CLUSTER
+
+BO_ 160 ENGINE_STATUS : 8 M7
+ SG_ EngineRPM : 0|16@1+ (1,0) [0|65535] "rpm" CLUSTER
+ SG_ CoolantTemp : 16|8@1+ (1,-40) [-40|215] "celsius" CLUSTER
+ SG_ OilTemp : 24|8@1+ (1,-40) [-40|215] "celsius" CLUSTER
+ SG_ Redline : 32|1@1+ (1,0) [0|1] "" CLUSTER
+
+BO_ 192 THROTTLE_GEAR : 8 M7
+ SG_ ThrottlePos : 0|10@1+ (0.1,0) [0|102.3] "percent" CLUSTER
+ SG_ CurrentGear : 16|4@1+ (1,0) [0|15] "" CLUSTER
+ SG_ PerformanceMode : 20|3@1+ (1,0) [0|7] "" CLUSTER
+ SG_ SideStand : 24|1@1+ (1,0) [0|1] "" CLUSTER
+
+BO_ 288 WHEEL_SPEED : 8 M7
+ SG_ GroundSpeed : 0|16@1+ (0.1,0) [0|6553.5] "km/h" CLUSTER
+ SG_ LeanAngle : 16|12@1+ (0.1,-90) [-90|319.5] "deg" CLUSTER
+ SG_ LongAccel : 28|12@1+ (0.01,-20) [-20|20.95] "g" CLUSTER
+
+BO_ 512 CHASSIS_ELECTRICAL : 8 M7
+ SG_ FuelLevel : 0|8@1+ (0.5,0) [0|127.5] "percent" CLUSTER
+ SG_ BatteryVoltage : 8|12@1+ (0.01,0) [0|40.95] "V" CLUSTER
+ SG_ CanBusLoad : 20|7@1+ (1,0) [0|127] "percent" CLUSTER
+ SG_ AbsActive : 27|1@1+ (1,0) [0|1] "" CLUSTER
+ SG_ TcActive : 28|1@1+ (1,0) [0|1] "" CLUSTER
+ SG_ DtcCount : 32|8@1+ (1,0) [0|255] "" CLUSTER
+
+BO_ 544 TRIP_ODOMETER : 8 M7
+ SG_ Odometer : 0|24@1+ (0.1,0) [0|1677721.5] "km" CLUSTER
+ SG_ Trip1 : 24|20@1+ (0.1,0) [0|104857.5] "km" CLUSTER
+ SG_ Trip2 : 44|20@1+ (0.1,0) [0|104857.5] "km" CLUSTER
+
+VAL_ 192 PerformanceMode 0 "RAIN" 1 "STD" 2 "SPORT" 3 "TRACK" ;

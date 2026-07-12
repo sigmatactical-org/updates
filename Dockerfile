@@ -11,8 +11,10 @@ WORKDIR /app
 COPY --from=runtime-libs /usr/lib/x86_64-linux-gnu/liblzma.so.5 /usr/lib/x86_64-linux-gnu/liblzma.so.5
 COPY --chmod=555 sigma-updates /app/sigma-updates
 COPY --chown=nonroot:nonroot packages /app/packages
+COPY --chown=nonroot:nonroot dbc /app/dbc
 USER nonroot:nonroot
 ENV PORT=8080
 ENV UPDATES_PACKAGES_DIR=/app/packages
+ENV UPDATES_DBC_DIR=/app/dbc
 EXPOSE 8080
 ENTRYPOINT ["/app/sigma-updates"]

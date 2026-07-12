@@ -287,6 +287,14 @@ pub fn routes(
 
     let dbc_collection = dbc_v1.and(dbc_list.or(dbc_publish));
 
+    let dbc_latest = warp::path!("v1" / "dbc" / "latest")
+        .and(warp::get())
+        .map(|| match dbc::latest_dbc_file() {
+            Some(file) => warp::reply::with_status(warp::reply::json(&file), StatusCode::OK)
+                .into_response(),
+            None => json_error(StatusCode::NOT_FOUND, "no DBC schemas published"),
+        });
+
     let dbc_delete = warp::path!("v1" / "dbc" / String)
         .and(warp::delete())
         .and(internal_auth())
@@ -307,6 +315,7 @@ pub fn routes(
         .or(pkg_collection)
         .or(pkg_delete)
         .or(dbc_collection)
+        .or(dbc_latest)
         .or(dbc_delete)
         .or(channels)
         .or(latest)

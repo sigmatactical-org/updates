@@ -23,6 +23,7 @@ Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 | `DELETE` | `/v1/packages/{file}.deb` | Remove a package (auth required) |
 | `GET` | `/packages/{file}.deb` | Download a package |
 | `GET` | `/v1/dbc` | JSON page of Sigma Racer `.dbc` schemas (`?page=1&per_page=50&q=`) |
+| `GET` | `/v1/dbc/latest` | Latest Sigma Racer DBC metadata (prefers `sigma-racer.dbc`) |
 | `POST` | `/v1/dbc` | Publish a `.dbc` (`X-Dbc-Filename` + body; auth required) |
 | `DELETE` | `/v1/dbc/{file}.dbc` | Remove a schema file (auth required) |
 | `GET` | `/dbc/{file}.dbc` | Download a DBC schema |

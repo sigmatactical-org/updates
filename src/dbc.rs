@@ -118,6 +118,21 @@ pub fn list_dbc_files() -> Vec<DbcFile> {
     list_dbc_files_in(&config::dbc_dir())
 }
 
+/// Prefer the Sigma Racer schema, otherwise the first catalog entry.
+pub fn latest_dbc_file() -> Option<DbcFile> {
+    let files = list_dbc_files();
+    files
+        .iter()
+        .find(|f| {
+            f.filename == "sigma-racer.dbc"
+                || f.name == "sigma-racer"
+                || f.filename == "m7-draft.dbc"
+                || f.name == "m7-draft"
+        })
+        .cloned()
+        .or_else(|| files.into_iter().next())
+}
+
 /// Filter + paginate the DBC catalog (`page` is 1-based).
 pub fn list_dbc_files_page(page: u32, per_page: u32, query: &str) -> DbcPage {
     let all = list_dbc_files();
