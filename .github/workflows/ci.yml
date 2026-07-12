@@ -11,11 +11,26 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: updates
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: updates
+
+      - uses: actions/checkout@v5
+        with:
+          repository: sigmatactical-org/theme
+          path: theme
+
       - uses: dtolnay/rust-toolchain@1.90.0
         with:
           components: clippy
+
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: updates
+
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
