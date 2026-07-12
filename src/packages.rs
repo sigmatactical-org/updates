@@ -171,7 +171,7 @@ pub fn paginate_packages(
     let total_pages = if total == 0 {
         1
     } else {
-        ((total as u32) + per_page - 1) / per_page
+        (total as u32).div_ceil(per_page)
     };
     let page = page.clamp(1, total_pages);
     let start = ((page - 1) * per_page) as usize;
@@ -204,12 +204,11 @@ fn package_matches(pkg: &DebPackage, needle: &str) -> bool {
 
 pub fn list_packages_in(dir: &Path) -> Vec<DebPackage> {
     let fingerprint = dir_fingerprint(dir);
-    if let Ok(guard) = LIST_CACHE.lock() {
-        if let Some(cache) = guard.as_ref() {
-            if cache.fingerprint == fingerprint {
-                return cache.packages.clone();
-            }
-        }
+    if let Ok(guard) = LIST_CACHE.lock()
+        && let Some(cache) = guard.as_ref()
+        && cache.fingerprint == fingerprint
+    {
+        return cache.packages.clone();
     }
 
     let packages = scan_packages(dir);

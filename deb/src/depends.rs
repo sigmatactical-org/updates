@@ -63,9 +63,8 @@ impl DependencyExpr {
     {
         let pkgs: Vec<(&str, &str)> = available.into_iter().collect();
         self.alternatives.iter().any(|alt| {
-            pkgs.iter().any(|(name, ver)| {
-                name == &alt.package.name && alt.constraint.matches(ver)
-            })
+            pkgs.iter()
+                .any(|(name, ver)| name == &alt.package.name && alt.constraint.matches(ver))
         })
     }
 }
@@ -126,9 +125,11 @@ fn parse_clause(raw: &str) -> Option<DependencyClause> {
     }
 }
 
+type ConstraintCtor = fn(String) -> VersionConstraint;
+
 fn parse_constraint(inside: &str) -> Option<VersionConstraint> {
     let inside = inside.trim();
-    let makers: [(&str, fn(String) -> VersionConstraint); 8] = [
+    let makers: [(&str, ConstraintCtor); 8] = [
         (">=", VersionConstraint::Ge),
         ("<=", VersionConstraint::Le),
         (">>", VersionConstraint::Gt),

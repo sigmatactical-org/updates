@@ -141,7 +141,7 @@ pub fn paginate_dbc_files(all: &[DbcFile], page: u32, per_page: u32, query: &str
     let total_pages = if total == 0 {
         1
     } else {
-        ((total as u32) + per_page - 1) / per_page
+        (total as u32).div_ceil(per_page)
     };
     let page = page.clamp(1, total_pages);
     let start = ((page - 1) * per_page) as usize;
@@ -168,12 +168,11 @@ fn dbc_matches(file: &DbcFile, needle: &str) -> bool {
 
 pub fn list_dbc_files_in(dir: &Path) -> Vec<DbcFile> {
     let fingerprint = dir_fingerprint(dir);
-    if let Ok(guard) = LIST_CACHE.lock() {
-        if let Some(cache) = guard.as_ref() {
-            if cache.fingerprint == fingerprint {
-                return cache.files.clone();
-            }
-        }
+    if let Ok(guard) = LIST_CACHE.lock()
+        && let Some(cache) = guard.as_ref()
+        && cache.fingerprint == fingerprint
+    {
+        return cache.files.clone();
     }
 
     let files = scan_dbc_files(dir);
