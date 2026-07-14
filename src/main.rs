@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use sigma_updates::{Catalog, listen_addr, routes};
 use std::sync::Arc;
 

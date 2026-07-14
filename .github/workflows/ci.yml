@@ -34,3 +34,12 @@ jobs:
 
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check

@@ -1,5 +1,7 @@
 //! sigma-updates-cli — list, check, and publish Debian packages.
 
+#![forbid(unsafe_code)]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 

@@ -1,5 +1,7 @@
 //! Parse Debian binary package (`.deb`) control metadata.
 
+#![forbid(unsafe_code)]
+
 mod control;
 mod depends;
 mod read;

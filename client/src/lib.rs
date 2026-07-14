@@ -1,5 +1,7 @@
 //! HTTP client for sigma-updates package index.
 
+#![forbid(unsafe_code)]
+
 mod oidc;
 mod push;
 mod types;

@@ -1,5 +1,7 @@
 //! Sigma Updates — Debian package index + OTA catalog (RAUC metadata).
 
+#![forbid(unsafe_code)]
+
 mod api;
 mod catalog;
 mod config;
