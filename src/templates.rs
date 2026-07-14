@@ -1,3 +1,8 @@
+mod home_template;
+mod package_row;
+pub use home_template::HomeTemplate;
+pub use package_row::PackageRow;
+
 use askama::Template;
 use sigma_theme::copyright_years;
 use sigma_theme::nav::SiteHeader;
@@ -59,46 +64,10 @@ fn page_href(page: u32, per_page: u32, query: &str) -> String {
     href
 }
 
-#[derive(Debug)]
-pub struct PackageRow {
-    pub name: String,
-    pub version: String,
-    pub architecture: String,
-    pub size_label: String,
-    pub download_path: String,
-    pub filename: String,
-}
-
-#[derive(Template)]
-#[template(path = "home.html")]
-pub struct HomeTemplate {
-    pub title: String,
-    pub package_count: usize,
-    pub packages: Vec<PackageRow>,
-    pub packages_dir: String,
-    pub public_base: String,
-    pub identity_base: String,
-    pub sign_in_url: String,
-    pub publish_api_url: String,
-    pub copyright_years: String,
-    pub site_header: SiteHeader,
-    pub site_nav: String,
-    pub page: u32,
-    pub per_page: u32,
-    pub total_pages: u32,
-    pub query: String,
-    pub query_empty: bool,
-    pub has_prev: bool,
-    pub has_next: bool,
-    pub prev_href: String,
-    pub next_href: String,
-    pub range_start: usize,
-    pub range_end: usize,
-}
-
+/// Render the package-index home page.
 pub fn render_home_html(page: &PackagePage) -> askama::Result<String> {
     let rows: Vec<PackageRow> = page
-        .packages
+        .items
         .iter()
         .map(|p| PackageRow {
             name: p.name.clone(),

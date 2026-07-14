@@ -18,6 +18,7 @@ struct HomeQuery {
     q: Option<String>,
 }
 
+/// Build this module's routes.
 pub fn routes() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static
 {
     home()

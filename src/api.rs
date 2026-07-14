@@ -1,61 +1,28 @@
 //! JSON API routes for the update catalog and package index.
 
+mod channels_response;
+mod dbc_response;
+mod error_body;
+mod health;
+mod package_list_query;
+mod packages_response;
+pub(crate) use channels_response::ChannelsResponse;
+pub(crate) use dbc_response::DbcResponse;
+pub(crate) use error_body::ErrorBody;
+pub(crate) use health::Health;
+pub(crate) use package_list_query::PackageListQuery;
+pub(crate) use packages_response::PackagesResponse;
+
 use std::sync::Arc;
 
 use bytes::Bytes;
-use serde::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::reply::Response;
 use warp::{Filter, Rejection, Reply};
 
 use crate::catalog::Catalog;
-use crate::dbc::{self, PublishError as DbcPublishError};
+use crate::dbc::{self};
 use crate::packages::{self, PublishError};
-
-#[derive(Serialize)]
-struct Health {
-    status: &'static str,
-    service: &'static str,
-}
-
-#[derive(Serialize)]
-struct ChannelsResponse {
-    channels: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct PackagesResponse {
-    packages: Vec<packages::DebPackage>,
-    total: usize,
-    page: u32,
-    per_page: u32,
-    total_pages: u32,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    query: String,
-}
-
-#[derive(Serialize)]
-struct DbcResponse {
-    files: Vec<dbc::DbcFile>,
-    total: usize,
-    page: u32,
-    per_page: u32,
-    total_pages: u32,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    query: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct PackageListQuery {
-    page: Option<u32>,
-    per_page: Option<u32>,
-    q: Option<String>,
-}
-
-#[derive(Serialize)]
-struct ErrorBody {
-    error: String,
-}
 
 fn json_error(status: StatusCode, message: impl Into<String>) -> Response {
     warp::reply::with_status(
@@ -87,28 +54,19 @@ fn ensure_internal(
     }
 }
 
+/// HTTP status for a catalog publish/delete failure.
 fn publish_status(err: &PublishError) -> StatusCode {
     match err {
-        PublishError::InvalidFilename | PublishError::EmptyBody | PublishError::InvalidDeb(_) => {
-            StatusCode::BAD_REQUEST
-        }
+        PublishError::InvalidFilename
+        | PublishError::EmptyBody
+        | PublishError::InvalidContent(_) => StatusCode::BAD_REQUEST,
         PublishError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
         PublishError::NotFound => StatusCode::NOT_FOUND,
         PublishError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
-fn dbc_publish_status(err: &DbcPublishError) -> StatusCode {
-    match err {
-        DbcPublishError::InvalidFilename
-        | DbcPublishError::EmptyBody
-        | DbcPublishError::InvalidContent(_) => StatusCode::BAD_REQUEST,
-        DbcPublishError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
-        DbcPublishError::NotFound => StatusCode::NOT_FOUND,
-        DbcPublishError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    }
-}
-
+/// Build this module's routes.
 pub fn routes(
     catalog: Arc<Catalog>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
@@ -135,7 +93,7 @@ pub fn routes(
                     query.q.as_deref().unwrap_or(""),
                 );
                 warp::reply::json(&PackagesResponse {
-                    packages: page.packages,
+                    packages: page.items,
                     total: page.total,
                     page: page.page,
                     per_page: page.per_page,
@@ -242,7 +200,7 @@ pub fn routes(
                     query.q.as_deref().unwrap_or(""),
                 );
                 warp::reply::json(&DbcResponse {
-                    files: page.files,
+                    files: page.items,
                     total: page.total,
                     page: page.page,
                     per_page: page.per_page,
@@ -280,7 +238,7 @@ pub fn routes(
                         StatusCode::CREATED,
                     )
                     .into_response()),
-                    Err(err) => Ok(json_error(dbc_publish_status(&err), err.to_string())),
+                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
                 }
             },
         );
@@ -306,7 +264,7 @@ pub fn routes(
                 }
                 match dbc::delete_dbc(&filename) {
                     Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
-                    Err(err) => Ok(json_error(dbc_publish_status(&err), err.to_string())),
+                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
                 }
             },
         );
