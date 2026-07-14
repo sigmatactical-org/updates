@@ -149,12 +149,7 @@ pub fn list_packages_page(page: u32, per_page: u32, query: &str) -> PackagePage 
     paginate_packages(&all, page, per_page, query)
 }
 
-pub fn paginate_packages(
-    all: &[DebPackage],
-    page: u32,
-    per_page: u32,
-    query: &str,
-) -> PackagePage {
+pub fn paginate_packages(all: &[DebPackage], page: u32, per_page: u32, query: &str) -> PackagePage {
     let per_page = per_page.clamp(1, MAX_PER_PAGE);
     let q = query.trim();
     let filtered: Vec<DebPackage> = if q.is_empty() {
@@ -261,11 +256,7 @@ pub fn package_path(filename: &str) -> Option<PathBuf> {
         return None;
     }
     let path = config::packages_dir().join(filename);
-    if path.is_file() {
-        Some(path)
-    } else {
-        None
-    }
+    if path.is_file() { Some(path) } else { None }
 }
 
 /// Write (or replace) a `.deb` under the packages directory.
@@ -354,7 +345,11 @@ fn parse_deb_filename(filename: &str) -> (String, String, String) {
     let stem = filename.trim_end_matches(".deb");
     let parts: Vec<&str> = stem.rsplitn(3, '_').collect();
     match parts.as_slice() {
-        [arch, version, name] => ((*name).to_owned(), (*version).to_owned(), (*arch).to_owned()),
+        [arch, version, name] => (
+            (*name).to_owned(),
+            (*version).to_owned(),
+            (*arch).to_owned(),
+        ),
         _ => (stem.to_owned(), "—".into(), "—".into()),
     }
 }
@@ -394,7 +389,9 @@ mod tests {
 
     #[test]
     fn paginates_and_filters() {
-        let all: Vec<_> = (0..120).map(|i| stub(&format!("pkg-{i:03}"), "1")).collect();
+        let all: Vec<_> = (0..120)
+            .map(|i| stub(&format!("pkg-{i:03}"), "1"))
+            .collect();
         let page = paginate_packages(&all, 2, 50, "");
         assert_eq!(page.total, 120);
         assert_eq!(page.total_pages, 3);

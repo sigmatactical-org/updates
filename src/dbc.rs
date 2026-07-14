@@ -225,7 +225,11 @@ fn scan_dbc_files(dir: &Path) -> Vec<DbcFile> {
         })
         .collect();
 
-    files.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.filename.cmp(&b.filename)));
+    files.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.filename.cmp(&b.filename))
+    });
     files
 }
 
@@ -235,11 +239,7 @@ pub fn dbc_path(filename: &str) -> Option<PathBuf> {
         return None;
     }
     let path = config::dbc_dir().join(filename);
-    if path.is_file() {
-        Some(path)
-    } else {
-        None
-    }
+    if path.is_file() { Some(path) } else { None }
 }
 
 /// Write (or replace) a `.dbc` under the catalog directory.
@@ -320,9 +320,7 @@ mod tests {
 
     #[test]
     fn paginates_and_filters() {
-        let all: Vec<_> = (0..120)
-            .map(|i| stub(&format!("schema-{i:03}")))
-            .collect();
+        let all: Vec<_> = (0..120).map(|i| stub(&format!("schema-{i:03}"))).collect();
         let page = paginate_dbc_files(&all, 2, 50, "");
         assert_eq!(page.total, 120);
         assert_eq!(page.total_pages, 3);
@@ -332,9 +330,6 @@ mod tests {
 
         let filtered = paginate_dbc_files(&all, 1, 50, "schema-11");
         assert_eq!(filtered.total, 10);
-        assert!(filtered
-            .files
-            .iter()
-            .all(|f| f.name.contains("schema-11")));
+        assert!(filtered.files.iter().all(|f| f.name.contains("schema-11")));
     }
 }

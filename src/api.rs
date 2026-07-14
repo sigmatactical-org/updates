@@ -89,9 +89,9 @@ fn ensure_internal(
 
 fn publish_status(err: &PublishError) -> StatusCode {
     match err {
-        PublishError::InvalidFilename
-        | PublishError::EmptyBody
-        | PublishError::InvalidDeb(_) => StatusCode::BAD_REQUEST,
+        PublishError::InvalidFilename | PublishError::EmptyBody | PublishError::InvalidDeb(_) => {
+            StatusCode::BAD_REQUEST
+        }
         PublishError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
         PublishError::NotFound => StatusCode::NOT_FOUND,
         PublishError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -112,14 +112,12 @@ fn dbc_publish_status(err: &DbcPublishError) -> StatusCode {
 pub fn routes(
     catalog: Arc<Catalog>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    let health = warp::path("health")
-        .and(warp::get())
-        .map(|| {
-            warp::reply::json(&Health {
-                status: "ok",
-                service: "sigma-updates",
-            })
-        });
+    let health = warp::path("health").and(warp::get()).map(|| {
+        warp::reply::json(&Health {
+            status: "ok",
+            service: "sigma-updates",
+        })
+    });
 
     let up = warp::path("up")
         .and(warp::get())
@@ -127,24 +125,25 @@ pub fn routes(
 
     let packages_v1 = warp::path!("v1" / "packages").and(warp::path::end());
 
-    let pkg_list = warp::get()
-        .and(warp::query::<PackageListQuery>())
-        .map(|query: PackageListQuery| {
-            let page = packages::list_packages_page(
-                query.page.unwrap_or(1),
-                query.per_page.unwrap_or(packages::DEFAULT_PER_PAGE),
-                query.q.as_deref().unwrap_or(""),
-            );
-            warp::reply::json(&PackagesResponse {
-                packages: page.packages,
-                total: page.total,
-                page: page.page,
-                per_page: page.per_page,
-                total_pages: page.total_pages,
-                query: page.query,
-            })
-            .into_response()
-        });
+    let pkg_list =
+        warp::get()
+            .and(warp::query::<PackageListQuery>())
+            .map(|query: PackageListQuery| {
+                let page = packages::list_packages_page(
+                    query.page.unwrap_or(1),
+                    query.per_page.unwrap_or(packages::DEFAULT_PER_PAGE),
+                    query.q.as_deref().unwrap_or(""),
+                );
+                warp::reply::json(&PackagesResponse {
+                    packages: page.packages,
+                    total: page.total,
+                    page: page.page,
+                    per_page: page.per_page,
+                    total_pages: page.total_pages,
+                    query: page.query,
+                })
+                .into_response()
+            });
 
     let pkg_publish = warp::post()
         .and(internal_auth())
@@ -208,24 +207,24 @@ pub fn routes(
     let catalog_latest = catalog.clone();
     let latest = warp::path!("v1" / "channel" / String / "latest")
         .and(warp::get())
-        .map(move |channel: String| match catalog_latest.latest(&channel) {
-            Some(rel) => warp::reply::with_status(warp::reply::json(rel), StatusCode::OK),
-            None => warp::reply::with_status(
-                warp::reply::json(&ErrorBody {
-                    error: format!("unknown channel '{channel}'"),
-                }),
-                StatusCode::NOT_FOUND,
-            ),
-        });
+        .map(
+            move |channel: String| match catalog_latest.latest(&channel) {
+                Some(rel) => warp::reply::with_status(warp::reply::json(rel), StatusCode::OK),
+                None => warp::reply::with_status(
+                    warp::reply::json(&ErrorBody {
+                        error: format!("unknown channel '{channel}'"),
+                    }),
+                    StatusCode::NOT_FOUND,
+                ),
+            },
+        );
 
     let bundle = warp::path!("v1" / "channel" / String / "bundle" / String)
         .and(warp::get())
         .map(|_channel: String, name: String| {
             warp::reply::with_status(
                 warp::reply::json(&ErrorBody {
-                    error: format!(
-                        "bundle '{name}' not published yet — metadata-only catalog"
-                    ),
+                    error: format!("bundle '{name}' not published yet — metadata-only catalog"),
                 }),
                 StatusCode::NOT_FOUND,
             )
@@ -233,24 +232,25 @@ pub fn routes(
 
     let dbc_v1 = warp::path!("v1" / "dbc").and(warp::path::end());
 
-    let dbc_list = warp::get()
-        .and(warp::query::<PackageListQuery>())
-        .map(|query: PackageListQuery| {
-            let page = dbc::list_dbc_files_page(
-                query.page.unwrap_or(1),
-                query.per_page.unwrap_or(dbc::DEFAULT_PER_PAGE),
-                query.q.as_deref().unwrap_or(""),
-            );
-            warp::reply::json(&DbcResponse {
-                files: page.files,
-                total: page.total,
-                page: page.page,
-                per_page: page.per_page,
-                total_pages: page.total_pages,
-                query: page.query,
-            })
-            .into_response()
-        });
+    let dbc_list =
+        warp::get()
+            .and(warp::query::<PackageListQuery>())
+            .map(|query: PackageListQuery| {
+                let page = dbc::list_dbc_files_page(
+                    query.page.unwrap_or(1),
+                    query.per_page.unwrap_or(dbc::DEFAULT_PER_PAGE),
+                    query.q.as_deref().unwrap_or(""),
+                );
+                warp::reply::json(&DbcResponse {
+                    files: page.files,
+                    total: page.total,
+                    page: page.page,
+                    per_page: page.per_page,
+                    total_pages: page.total_pages,
+                    query: page.query,
+                })
+                .into_response()
+            });
 
     let dbc_publish = warp::post()
         .and(internal_auth())
@@ -290,8 +290,9 @@ pub fn routes(
     let dbc_latest = warp::path!("v1" / "dbc" / "latest")
         .and(warp::get())
         .map(|| match dbc::latest_dbc_file() {
-            Some(file) => warp::reply::with_status(warp::reply::json(&file), StatusCode::OK)
-                .into_response(),
+            Some(file) => {
+                warp::reply::with_status(warp::reply::json(&file), StatusCode::OK).into_response()
+            }
             None => json_error(StatusCode::NOT_FOUND, "no DBC schemas published"),
         });
 

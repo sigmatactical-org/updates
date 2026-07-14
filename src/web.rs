@@ -18,7 +18,8 @@ struct HomeQuery {
     q: Option<String>,
 }
 
-pub fn routes() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static {
+pub fn routes() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static
+{
     home()
         .or(package_download())
         .or(dbc_download())
@@ -41,16 +42,19 @@ fn home() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + S
         })
 }
 
-fn publish_js() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static {
-    warp::path!("js" / "publish.js")
-        .and(warp::get())
-        .map(|| {
-            warp::reply::with_header(PUBLISH_JS, "content-type", "application/javascript; charset=utf-8")
-        })
+fn publish_js() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static
+{
+    warp::path!("js" / "publish.js").and(warp::get()).map(|| {
+        warp::reply::with_header(
+            PUBLISH_JS,
+            "content-type",
+            "application/javascript; charset=utf-8",
+        )
+    })
 }
 
-fn dbc_download()
--> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static {
+fn dbc_download() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static
+{
     warp::path("dbc")
         .and(warp::path::param::<String>())
         .and(warp::path::end())
@@ -65,7 +69,9 @@ fn dbc_download()
             let mut resp = warp::reply::Response::new(bytes.into());
             resp.headers_mut().insert(
                 warp::http::header::CONTENT_TYPE,
-                "text/plain; charset=utf-8".parse().expect("valid content-type"),
+                "text/plain; charset=utf-8"
+                    .parse()
+                    .expect("valid content-type"),
             );
             resp.headers_mut().insert(
                 warp::http::header::CONTENT_DISPOSITION,

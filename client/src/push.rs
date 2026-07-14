@@ -3,9 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 
-use sigma_updates_deb::{
-    DebControl, DependencyExpr, inspect_deb_file, satisfies,
-};
+use sigma_updates_deb::{DebControl, DependencyExpr, inspect_deb_file, satisfies};
 
 use crate::{ClientError, DebPackage, UpdatesClient};
 
@@ -55,10 +53,7 @@ pub fn load_local_packages(paths: &[PathBuf]) -> Result<Vec<LocalPackage>, Clien
 
 /// Build a publish plan: topo-sort locals and report unsatisfied dependencies
 /// against the remote index (+ other locals in the batch).
-pub fn plan_push(
-    remote: &[DebPackage],
-    locals: &[LocalPackage],
-) -> Result<PushPlan, ClientError> {
+pub fn plan_push(remote: &[DebPackage], locals: &[LocalPackage]) -> Result<PushPlan, ClientError> {
     let order = topo_sort(locals)?;
     let mut available: HashMap<String, String> = HashMap::new();
     for pkg in remote {
@@ -73,9 +68,7 @@ pub fn plan_push(
     let mut missing = Vec::new();
     for local in &order {
         let deps: Vec<_> = local.control.all_depends().cloned().collect();
-        let avail_iter = available
-            .iter()
-            .map(|(n, v)| (n.as_str(), v.as_str()));
+        let avail_iter = available.iter().map(|(n, v)| (n.as_str(), v.as_str()));
         if let Err(unsat) = satisfies(&deps, avail_iter) {
             missing.push(MissingDependency {
                 package: local.control.package.clone(),
@@ -83,10 +76,7 @@ pub fn plan_push(
             });
         }
         // After checking, treat this local as available for later packages.
-        available.insert(
-            local.control.package.clone(),
-            local.control.version.clone(),
-        );
+        available.insert(local.control.package.clone(), local.control.version.clone());
         for provided in &local.control.provides {
             available
                 .entry(provided.name.clone())
@@ -137,20 +127,14 @@ pub fn push_packages(
 }
 
 /// Check local packages against the remote index without publishing.
-pub fn check_packages(
-    client: &UpdatesClient,
-    paths: &[PathBuf],
-) -> Result<PushPlan, ClientError> {
+pub fn check_packages(client: &UpdatesClient, paths: &[PathBuf]) -> Result<PushPlan, ClientError> {
     let locals = load_local_packages(paths)?;
     let remote = client.list_packages()?;
     plan_push(&remote, &locals)
 }
 
 fn topo_sort(locals: &[LocalPackage]) -> Result<Vec<LocalPackage>, ClientError> {
-    let names: HashSet<String> = locals
-        .iter()
-        .map(|p| p.control.package.clone())
-        .collect();
+    let names: HashSet<String> = locals.iter().map(|p| p.control.package.clone()).collect();
 
     // Edge: dep -> package (dep must come first) only for deps satisfied by other locals.
     let mut indegree: HashMap<String, usize> = locals
@@ -180,9 +164,7 @@ fn topo_sort(locals: &[LocalPackage]) -> Result<Vec<LocalPackage>, ClientError> 
         .filter(|(_, d)| **d == 0)
         .map(|(n, _)| n.clone())
         .collect();
-    queue
-        .make_contiguous()
-        .sort(); // stable deterministic order
+    queue.make_contiguous().sort(); // stable deterministic order
 
     let by_name: HashMap<_, _> = locals
         .iter()
@@ -258,7 +240,10 @@ pub fn collect_deb_paths(inputs: &[PathBuf]) -> Result<Vec<PathBuf>, ClientError
     Ok(out)
 }
 
-fn collect_deb_paths_recursive(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> Result<(), ClientError> {
+fn collect_deb_paths_recursive(
+    dir: &std::path::Path,
+    out: &mut Vec<PathBuf>,
+) -> Result<(), ClientError> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();

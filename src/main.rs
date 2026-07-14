@@ -1,4 +1,4 @@
-use sigma_updates::{listen_addr, routes, Catalog};
+use sigma_updates::{Catalog, listen_addr, routes};
 use std::sync::Arc;
 
 #[tokio::main]

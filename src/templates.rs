@@ -140,7 +140,11 @@ pub fn render_home_html(page: &PackagePage) -> askama::Result<String> {
         query_empty: page.query.is_empty(),
         has_prev: page.has_prev(),
         has_next: page.has_next(),
-        prev_href: page_href(page.page.saturating_sub(1).max(1), page.per_page, &page.query),
+        prev_href: page_href(
+            page.page.saturating_sub(1).max(1),
+            page.per_page,
+            &page.query,
+        ),
         next_href: page_href(
             (page.page + 1).min(page.total_pages),
             page.per_page,

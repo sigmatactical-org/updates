@@ -1,5 +1,8 @@
 # sigma-updates
 
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![MSRV](https://img.shields.io/badge/MSRV-1.97.0-blue.svg)](https://www.rust-lang.org)
+
 Debian **package index** and OTA **catalog** for Sigma. Serves `.deb` files from
 this service’s own `packages/` directory, plus channel metadata for signed RAUC
 bundles (Wingman).

@@ -7,26 +7,26 @@ default-members = [".", "cli"]
 
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90.0"
+rust-version = "1.97.0"
 license = "MIT OR Apache-2.0"
 authors = ["Sigma Tactical Group contributors <https://github.com/sigmatactical-org>"]
 homepage = "https://sigmatactical.org"
 publish = false
 
 [workspace.dependencies]
-ar = "0.9"
-bytes = "1"
-clap = { version = "4.5", features = ["derive", "env"] }
-debversion = "0.4"
-flate2 = "1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+ar = "0.9.0"
+bytes = "1.12.1"
+clap = { version = "4.6.1", features = ["derive", "env"] }
+debversion = "0.5.4"
+flate2 = "1.1.9"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
 sigma-updates-client = { path = "client" }
 sigma-updates-deb = { path = "deb" }
-tar = "0.4"
-thiserror = "2"
-ureq = { version = "2.12", default-features = false, features = ["native-tls", "gzip"] }
-xz2 = "0.1"
+tar = "0.4.46"
+thiserror = "2.0.18"
+ureq = { version = "3.3.0", default-features = false, features = ["native-tls", "gzip"] }
+xz2 = "0.1.7"
 
 [package]
 
@@ -48,15 +48,15 @@ path = "src/main.rs"
 [dependencies]
 askama = "0.16.0"
 bytes = { workspace = true }
-chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git" }
 sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", default-features = false, features = ["askama", "warp"] }
 sigma-updates-deb = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
-warp = { version = "0.4", features = ["server"] }
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
+warp = { version = "0.4.3", features = ["server"] }
 
 [profile.release]
 lto = "thin"

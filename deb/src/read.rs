@@ -38,9 +38,7 @@ pub fn inspect_deb_bytes(bytes: &[u8]) -> Result<DebControl, DebError> {
     }
 
     let Some((name, data)) = control_tar else {
-        return Err(DebError::Archive(
-            "missing control.tar.* member".into(),
-        ));
+        return Err(DebError::Archive("missing control.tar.* member".into()));
     };
 
     let control_text = read_control_member(&name, &data)?;
@@ -68,7 +66,10 @@ fn read_control_member(archive_name: &str, data: &[u8]) -> Result<String, DebErr
     };
 
     let mut tar = tar::Archive::new(Cursor::new(uncompressed));
-    for entry in tar.entries().map_err(|e| DebError::Archive(e.to_string()))? {
+    for entry in tar
+        .entries()
+        .map_err(|e| DebError::Archive(e.to_string()))?
+    {
         let mut entry = entry.map_err(|e| DebError::Archive(e.to_string()))?;
         let path = entry
             .path()
@@ -82,7 +83,9 @@ fn read_control_member(archive_name: &str, data: &[u8]) -> Result<String, DebErr
             return Ok(text);
         }
     }
-    Err(DebError::Archive("control file not found in control.tar".into()))
+    Err(DebError::Archive(
+        "control file not found in control.tar".into(),
+    ))
 }
 
 #[cfg(test)]

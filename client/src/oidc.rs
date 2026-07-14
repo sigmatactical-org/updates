@@ -13,40 +13,39 @@ pub fn client_credentials_token(
     client_id: &str,
     client_secret: &str,
 ) -> Result<String, ClientError> {
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(10))
-        .timeout_read(std::time::Duration::from_secs(30))
-        .build();
-    let response = agent
+    let agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_secs(10)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
+        .timeout_recv_body(Some(std::time::Duration::from_secs(30)))
+        .http_status_as_error(false)
+        .tls_config(
+            ureq::tls::TlsConfig::builder()
+                .provider(ureq::tls::TlsProvider::NativeTls)
+                .build(),
+        )
+        .build()
+        .new_agent();
+    let mut resp = agent
         .post(token_url.trim())
-        .set("Content-Type", "application/x-www-form-urlencoded")
-        .send_form(&[
+        .send_form([
             ("grant_type", "client_credentials"),
             ("client_id", client_id.trim()),
             ("client_secret", client_secret.trim()),
-        ]);
-    match response {
-        Ok(resp) => {
-            let status = resp.status();
-            let body = resp.into_string().unwrap_or_default();
-            if !(200..300).contains(&status) {
-                return Err(ClientError::Status { status, body });
-            }
-            let parsed: TokenResponse =
-                serde_json::from_str(&body).map_err(|e| ClientError::Json(e.to_string()))?;
-            if parsed.access_token.trim().is_empty() {
-                return Err(ClientError::Message(
-                    "token response missing access_token".into(),
-                ));
-            }
-            Ok(parsed.access_token)
-        }
-        Err(ureq::Error::Status(status, resp)) => {
-            let body = resp.into_string().unwrap_or_default();
-            Err(ClientError::Status { status, body })
-        }
-        Err(e) => Err(ClientError::Http(e.to_string())),
+        ])
+        .map_err(|e| ClientError::Http(e.to_string()))?;
+    let status = resp.status().as_u16();
+    let body = resp.body_mut().read_to_string().unwrap_or_default();
+    if !(200..300).contains(&status) {
+        return Err(ClientError::Status { status, body });
     }
+    let parsed: TokenResponse =
+        serde_json::from_str(&body).map_err(|e| ClientError::Json(e.to_string()))?;
+    if parsed.access_token.trim().is_empty() {
+        return Err(ClientError::Message(
+            "token response missing access_token".into(),
+        ));
+    }
+    Ok(parsed.access_token)
 }
 
 /// Build a Keycloak token endpoint URL from an issuer base

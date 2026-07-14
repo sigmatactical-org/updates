@@ -80,13 +80,22 @@ fn main() -> ExitCode {
 }
 
 fn resolve_auth_token(cli: &Cli) -> Result<Option<String>, String> {
-    let has_oidc = cli.oidc_client_id.as_ref().is_some_and(|s| !s.trim().is_empty())
+    let has_oidc = cli
+        .oidc_client_id
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty())
         || cli
             .oidc_client_secret
             .as_ref()
             .is_some_and(|s| !s.trim().is_empty())
-        || cli.oidc_token_url.as_ref().is_some_and(|s| !s.trim().is_empty())
-        || cli.oidc_issuer.as_ref().is_some_and(|s| !s.trim().is_empty());
+        || cli
+            .oidc_token_url
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty())
+        || cli
+            .oidc_issuer
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty());
 
     if has_oidc {
         let client_id = cli
@@ -94,7 +103,9 @@ fn resolve_auth_token(cli: &Cli) -> Result<Option<String>, String> {
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .ok_or_else(|| "OIDC auth requires --oidc-client-id / SIGMA_OIDC_CLIENT_ID".to_string())?;
+            .ok_or_else(|| {
+                "OIDC auth requires --oidc-client-id / SIGMA_OIDC_CLIENT_ID".to_string()
+            })?;
         let client_secret = cli
             .oidc_client_secret
             .as_deref()
@@ -196,7 +207,12 @@ fn run() -> Result<(), String> {
             } else {
                 println!("dependencies: MISSING");
                 for m in &plan.missing {
-                    let deps = m.missing.iter().map(format_dep).collect::<Vec<_>>().join(", ");
+                    let deps = m
+                        .missing
+                        .iter()
+                        .map(format_dep)
+                        .collect::<Vec<_>>()
+                        .join(", ");
                     println!("  {} needs: {deps}", m.package);
                 }
                 Err("one or more packages have unsatisfied dependencies".into())
@@ -207,8 +223,8 @@ fn run() -> Result<(), String> {
             allow_missing_deps,
         } => {
             let paths = collect_deb_paths(&paths).map_err(|e| e.to_string())?;
-            let report = push_packages(&client, &paths, allow_missing_deps)
-                .map_err(|e| e.to_string())?;
+            let report =
+                push_packages(&client, &paths, allow_missing_deps).map_err(|e| e.to_string())?;
             for pkg in &report.published {
                 println!("published {} ({} {})", pkg.filename, pkg.name, pkg.version);
             }

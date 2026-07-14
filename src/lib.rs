@@ -16,8 +16,8 @@ use warp::Reply;
 
 pub use catalog::{Catalog, ChannelRelease};
 pub use config::public_base_url_trimmed as public_base_url;
-pub use dbc::{list_dbc_files, DbcFile};
-pub use packages::{list_packages, DebPackage};
+pub use dbc::{DbcFile, list_dbc_files};
+pub use packages::{DebPackage, list_packages};
 
 pub fn listen_addr() -> std::net::SocketAddr {
     let port: u16 = std::env::var("PORT")

@@ -6,8 +6,8 @@ mod types;
 
 pub use oidc::{client_credentials_token, token_url_from_issuer};
 pub use push::{
-    MissingDependency, PushPlan, PushReport, check_packages, collect_deb_paths, load_local_packages,
-    plan_push, push_packages,
+    MissingDependency, PushPlan, PushReport, check_packages, collect_deb_paths,
+    load_local_packages, plan_push, push_packages,
 };
 pub use types::{DebPackage, PackagesResponse};
 
@@ -42,10 +42,18 @@ pub struct UpdatesClient {
 
 impl UpdatesClient {
     pub fn new(base_url: impl Into<String>) -> Self {
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(Duration::from_secs(10))
-            .timeout_read(Duration::from_secs(120))
-            .build();
+        let agent = ureq::Agent::config_builder()
+            .timeout_connect(Some(Duration::from_secs(10)))
+            .timeout_recv_response(Some(Duration::from_secs(120)))
+            .timeout_recv_body(Some(Duration::from_secs(120)))
+            .http_status_as_error(false)
+            .tls_config(
+                ureq::tls::TlsConfig::builder()
+                    .provider(ureq::tls::TlsProvider::NativeTls)
+                    .build(),
+            )
+            .build()
+            .new_agent();
         Self {
             base_url: base_url.into().trim_end_matches('/').to_owned(),
             token: None,
@@ -94,13 +102,19 @@ impl UpdatesClient {
             url.push_str("&q=");
             url.push_str(&urlencoding_lite(query.trim()));
         }
-        let body = self
+        let mut resp = self
             .agent
             .get(&url)
             .call()
-            .map_err(|e| ClientError::Http(e.to_string()))?
-            .into_string()
             .map_err(|e| ClientError::Http(e.to_string()))?;
+        let status = resp.status().as_u16();
+        let body = resp
+            .body_mut()
+            .read_to_string()
+            .map_err(|e| ClientError::Http(e.to_string()))?;
+        if !(200..300).contains(&status) {
+            return Err(ClientError::Status { status, body });
+        }
         serde_json::from_str(&body).map_err(|e| ClientError::Json(e.to_string()))
     }
 
@@ -120,28 +134,20 @@ impl UpdatesClient {
             .as_deref()
             .ok_or_else(|| ClientError::Message("publish requires an auth token".into()))?;
         let url = format!("{}/v1/packages", self.base_url);
-        let response = self
+        let mut resp = self
             .agent
             .post(&url)
-            .set("Authorization", &format!("Bearer {token}"))
-            .set("X-Package-Filename", filename)
-            .set("Content-Type", "application/octet-stream")
-            .send_bytes(bytes);
-        match response {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.into_string().unwrap_or_default();
-                if !(200..300).contains(&status) {
-                    return Err(ClientError::Status { status, body });
-                }
-                serde_json::from_str(&body).map_err(|e| ClientError::Json(e.to_string()))
-            }
-            Err(ureq::Error::Status(status, resp)) => {
-                let body = resp.into_string().unwrap_or_default();
-                Err(ClientError::Status { status, body })
-            }
-            Err(e) => Err(ClientError::Http(e.to_string())),
+            .header("Authorization", format!("Bearer {token}"))
+            .header("X-Package-Filename", filename)
+            .header("Content-Type", "application/octet-stream")
+            .send(bytes)
+            .map_err(|e| ClientError::Http(e.to_string()))?;
+        let status = resp.status().as_u16();
+        let body = resp.body_mut().read_to_string().unwrap_or_default();
+        if !(200..300).contains(&status) {
+            return Err(ClientError::Status { status, body });
         }
+        serde_json::from_str(&body).map_err(|e| ClientError::Json(e.to_string()))
     }
 
     pub fn delete_package(&self, filename: &str) -> Result<(), ClientError> {
@@ -150,23 +156,20 @@ impl UpdatesClient {
             .as_deref()
             .ok_or_else(|| ClientError::Message("delete requires an auth token".into()))?;
         let url = format!("{}/v1/packages/{filename}", self.base_url);
-        let response = self
+        let mut resp = self
             .agent
             .delete(&url)
-            .set("Authorization", &format!("Bearer {token}"))
-            .call();
-        match response {
-            Ok(resp) if (200..300).contains(&resp.status()) || resp.status() == 204 => Ok(()),
-            Ok(resp) => Err(ClientError::Status {
-                status: resp.status(),
-                body: resp.into_string().unwrap_or_default(),
-            }),
-            Err(ureq::Error::Status(status, resp)) => {
-                let body = resp.into_string().unwrap_or_default();
-                Err(ClientError::Status { status, body })
-            }
-            Err(e) => Err(ClientError::Http(e.to_string())),
+            .header("Authorization", format!("Bearer {token}"))
+            .call()
+            .map_err(|e| ClientError::Http(e.to_string()))?;
+        let status = resp.status().as_u16();
+        if (200..300).contains(&status) {
+            return Ok(());
         }
+        Err(ClientError::Status {
+            status,
+            body: resp.body_mut().read_to_string().unwrap_or_default(),
+        })
     }
 }
 

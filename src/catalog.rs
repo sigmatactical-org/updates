@@ -29,8 +29,7 @@ impl Catalog {
     /// Built-in **dev** channel pointing at the local kind ingress URL.
     pub fn with_dev_defaults() -> Self {
         let base = public_base_url_trimmed();
-        let version = std::env::var("UPDATES_DEV_VERSION")
-            .unwrap_or_else(|_| "0.1.0-dev.1".into());
+        let version = std::env::var("UPDATES_DEV_VERSION").unwrap_or_else(|_| "0.1.0-dev.1".into());
         Self {
             releases: vec![ChannelRelease {
                 channel: "dev".into(),
