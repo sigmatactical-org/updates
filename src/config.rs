@@ -66,6 +66,16 @@ pub fn packages_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("packages"))
 }
 
+/// Directory of RAUC update bundles, one subdir per channel (default `./bundles`).
+#[must_use]
+pub fn bundles_dir() -> std::path::PathBuf {
+    std::env::var("UPDATES_BUNDLES_DIR")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("bundles"))
+}
+
 /// Directory of Sigma Racer `.dbc` schema files (default `./dbc`).
 #[must_use]
 pub fn dbc_dir() -> std::path::PathBuf {

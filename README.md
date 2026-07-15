@@ -33,7 +33,9 @@ Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 | `GET` | `/dbc/{file}.dbc` | Download a DBC schema |
 | `GET` | `/v1/channels` | List RAUC channels |
 | `GET` | `/v1/channel/{name}/latest` | Latest RAUC release metadata |
-| `GET` | `/v1/channel/{name}/bundle/{file}` | Bundle bytes (when published) |
+| `GET` | `/v1/channel/{name}/bundle/{file}` | Signed `.raucb` bytes, streamed from disk |
+| `POST` | `/v1/channel/{name}/bundle/{file}` | Publish a bundle (streamed body; auth required) |
+| `DELETE` | `/v1/channel/{name}/bundle/{file}` | Remove a bundle (auth required) |
 
 ## Client library & CLI
 
@@ -68,6 +70,7 @@ intentionally publish incomplete sets.
 | --- | --- |
 | `PORT` | Listen port (default `8080`) |
 | `UPDATES_PACKAGES_DIR` | Directory of `.deb` files (default `packages`, image: `/app/packages`) |
+| `UPDATES_BUNDLES_DIR` | RAUC bundle store, one `<channel>/bundle/` subdir per channel (default `bundles`, image: `/app/bundles`) |
 | `UPDATES_DBC_DIR` | Directory of Sigma Racer `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
 | `UPDATES_PUBLIC_BASE_URL` | Public base used in `bundle_url` and site links |
 | `UPDATES_DEV_VERSION` | Override the built-in dev channel version |

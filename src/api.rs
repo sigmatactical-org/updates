@@ -20,6 +20,7 @@ use warp::http::StatusCode;
 use warp::reply::Response;
 use warp::{Filter, Rejection, Reply};
 
+use crate::bundles;
 use crate::catalog::Catalog;
 use crate::dbc::{self};
 use crate::packages::{self, PublishError};
@@ -177,16 +178,54 @@ pub fn routes(
             },
         );
 
-    let bundle = warp::path!("v1" / "channel" / String / "bundle" / String)
+    // GETs stream straight off disk: the on-disk layout under bundles_dir
+    // mirrors the URL tail (<channel>/bundle/<name>), so warp's fs filter
+    // handles streaming, ranges, and path sanitization.
+    let bundle = warp::path!("v1" / "channel" / ..)
         .and(warp::get())
-        .map(|_channel: String, name: String| {
-            warp::reply::with_status(
-                warp::reply::json(&ErrorBody {
-                    error: format!("bundle '{name}' not published yet — metadata-only catalog"),
-                }),
-                StatusCode::NOT_FOUND,
-            )
-        });
+        .and(warp::fs::dir(crate::config::bundles_dir()));
+
+    let bundle_publish = warp::path!("v1" / "channel" / String / "bundle" / String)
+        .and(warp::post())
+        .and(internal_auth())
+        .and(warp::body::content_length_limit(bundles::MAX_BUNDLE_BYTES))
+        .and(warp::body::stream())
+        .and_then(
+            |channel: String, name: String, authorization, internal_token, body| async move {
+                if ensure_internal(authorization, internal_token).is_err() {
+                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
+                }
+                match bundles::store_bundle(&channel, &name, body).await {
+                    Ok(bytes) => Ok(warp::reply::with_status(
+                        warp::reply::json(&serde_json::json!({
+                            "channel": channel,
+                            "bundle": name,
+                            "size_bytes": bytes,
+                        })),
+                        StatusCode::CREATED,
+                    )
+                    .into_response()),
+                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
+                }
+            },
+        );
+
+    let bundle_delete = warp::path!("v1" / "channel" / String / "bundle" / String)
+        .and(warp::delete())
+        .and(internal_auth())
+        .and_then(
+            |channel: String, name: String, authorization, internal_token| async move {
+                if ensure_internal(authorization, internal_token).is_err() {
+                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
+                }
+                match bundles::delete_bundle(&channel, &name) {
+                    Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
+                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
+                }
+            },
+        );
+
+    let bundle = bundle.or(bundle_publish).or(bundle_delete);
 
     let dbc_v1 = warp::path!("v1" / "dbc").and(warp::path::end());
 

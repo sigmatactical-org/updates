@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod api;
+mod bundles;
 mod catalog;
 mod config;
 mod dbc;
