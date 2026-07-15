@@ -27,23 +27,37 @@ struct ContentsEntry {
     download_url: Option<String>,
 }
 
-/// Spawn the background mirror thread; the first pass runs immediately.
+/// Retry pace until the first successful pass. Startup loses the race
+/// against the Istio sidecar, and waiting a full sync interval would leave
+/// fresh pods serving an empty catalog for minutes.
+const FIRST_SYNC_RETRY: Duration = Duration::from_secs(5);
+
+/// Spawn the background mirror thread; the first pass runs immediately and
+/// retries quickly until it succeeds once.
 pub fn spawn() {
     thread::Builder::new()
         .name("dbc-github-sync".into())
         .spawn(|| {
+            let mut synced_once = false;
             loop {
                 match sync_once() {
-                    Ok((dbc, vss)) => eprintln!(
-                        "dbc-sync: {dbc} dictionary(ies) + {vss} VSS file(s) mirrored from {}",
-                        config::dbc_github_source()
-                    ),
+                    Ok((dbc, vss)) => {
+                        synced_once = true;
+                        eprintln!(
+                            "dbc-sync: {dbc} dictionary(ies) + {vss} VSS file(s) mirrored from {}",
+                            config::dbc_github_source()
+                        );
+                    }
                     Err(e) => eprintln!(
                         "dbc-sync: {e}; serving cached copies from {}",
                         config::dbc_dir().display()
                     ),
                 }
-                thread::sleep(config::dbc_sync_interval());
+                thread::sleep(if synced_once {
+                    config::dbc_sync_interval()
+                } else {
+                    FIRST_SYNC_RETRY
+                });
             }
         })
         .expect("spawn dbc-github-sync thread");
