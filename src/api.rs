@@ -225,7 +225,21 @@ pub fn routes(
             },
         );
 
-    let bundle = bundle.or(bundle_publish).or(bundle_delete);
+    // fs::dir rejects missing files; without an explicit GET fallback the
+    // rejection combines with the POST/DELETE method mismatches into a 405.
+    let bundle_missing = warp::path!("v1" / "channel" / String / "bundle" / String)
+        .and(warp::get())
+        .map(|channel: String, name: String| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("bundle '{name}' not published on channel '{channel}'"),
+            )
+        });
+
+    let bundle = bundle
+        .or(bundle_missing)
+        .or(bundle_publish)
+        .or(bundle_delete);
 
     let dbc_v1 = warp::path!("v1" / "dbc").and(warp::path::end());
 
