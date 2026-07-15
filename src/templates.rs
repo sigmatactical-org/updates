@@ -7,7 +7,7 @@ pub use schema_row::SchemaRow;
 
 use askama::Template;
 use sigma_theme::copyright_years;
-use sigma_theme::nav::SiteHeader;
+use sigma_theme::nav::{SiteHeader, SiteMenuSection, site_menu};
 use sigma_theme::site_nav::{AppSiteNav, render_app_site_nav};
 
 use crate::config;
@@ -15,8 +15,8 @@ use crate::dbc::DbcFile;
 use crate::packages::PackagePage;
 use crate::vss::VssFile;
 
-fn page_header(brand: &str) -> SiteHeader {
-    SiteHeader::new(brand)
+fn page_header() -> SiteHeader {
+    SiteHeader::new().with_menu(site_menu(Some(SiteMenuSection::Updates)))
 }
 
 fn site_nav() -> Result<String, askama::Error> {
@@ -133,7 +133,7 @@ pub fn render_home_html(
         sign_in_url: sign_in_url(),
         publish_api_url: format!("{identity_root}/api/v1/packages"),
         copyright_years: copyright_years(),
-        site_header: page_header("Sigma Updates"),
+        site_header: page_header(),
         site_nav: site_nav()?,
         page: page.page,
         per_page: page.per_page,
