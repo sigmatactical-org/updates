@@ -16,9 +16,7 @@ use crate::packages::PackagePage;
 use crate::vss::VssFile;
 
 fn page_header() -> SiteHeader {
-    SiteHeader::new()
-        .with_brand_label("Updates")
-        .with_menu(site_menu(Some(SiteMenuSection::Updates)))
+    SiteHeader::new("Updates").with_menu(site_menu(Some(SiteMenuSection::Updates)))
 }
 
 fn site_nav() -> Result<String, askama::Error> {
