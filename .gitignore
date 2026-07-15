@@ -8,3 +8,5 @@ Cargo.lock
 
 # DBC catalog is a runtime cache mirrored from GitHub (see src/dbc/github_sync.rs)
 /dbc/*.dbc
+/vss/*
+!/vss/.gitkeep

@@ -86,6 +86,16 @@ pub fn dbc_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("dbc"))
 }
 
+/// Local cache directory for mirrored VSS files (default `./vss`).
+#[must_use]
+pub fn vss_dir() -> std::path::PathBuf {
+    std::env::var("UPDATES_VSS_DIR")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("vss"))
+}
+
 fn env_or(var: &str, default: &str) -> String {
     std::env::var(var)
         .ok()
@@ -106,6 +116,12 @@ pub fn dbc_github_repo() -> String {
 #[must_use]
 pub fn dbc_github_path() -> String {
     env_or("UPDATES_DBC_GITHUB_PATH", "schemas/can")
+}
+
+/// Repo subdirectory holding the VSS signal tree.
+#[must_use]
+pub fn vss_github_path() -> String {
+    env_or("UPDATES_VSS_GITHUB_PATH", "schemas/vss")
 }
 
 /// Git ref (branch, tag, or SHA) the schemas are mirrored from.

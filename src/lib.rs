@@ -10,6 +10,7 @@ mod dbc;
 mod listing;
 mod packages;
 mod templates;
+mod vss;
 mod web;
 
 use std::convert::Infallible;
@@ -22,6 +23,7 @@ pub use catalog::{Catalog, ChannelRelease};
 pub use config::public_base_url_trimmed as public_base_url;
 pub use dbc::{DbcFile, list_dbc_files, spawn_github_sync as spawn_dbc_sync};
 pub use packages::{DebPackage, list_packages};
+pub use vss::{VssFile, list_vss_files};
 
 /// Bind address from `LISTEN_ADDR` (default port 30080).
 pub fn listen_addr() -> std::net::SocketAddr {

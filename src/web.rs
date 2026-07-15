@@ -8,6 +8,7 @@ use warp::Reply;
 use crate::dbc;
 use crate::packages;
 use crate::templates;
+use crate::vss;
 
 const PUBLISH_JS: &str = include_str!("../assets/publish.js");
 
@@ -24,6 +25,7 @@ pub fn routes() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clo
     home()
         .or(package_download())
         .or(dbc_download())
+        .or(vss_download())
         .or(publish_js())
 }
 
@@ -37,7 +39,7 @@ fn home() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + S
                 query.per_page.unwrap_or(packages::DEFAULT_PER_PAGE),
                 query.q.as_deref().unwrap_or(""),
             );
-            templates::render_home_html(&page, &dbc::list_dbc_files())
+            templates::render_home_html(&page, &dbc::list_dbc_files(), &vss::list_vss_files())
                 .map(warp::reply::html)
                 .map_err(|_| warp::reject::not_found())
         })
@@ -62,6 +64,36 @@ fn dbc_download() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + C
         .and(warp::get())
         .and_then(|filename: String| async move {
             let Some(path) = dbc::dbc_path(&filename) else {
+                return Err(warp::reject::not_found());
+            };
+            let bytes = tokio::fs::read(&path)
+                .await
+                .map_err(|_| warp::reject::not_found())?;
+            let mut resp = warp::reply::Response::new(bytes.into());
+            resp.headers_mut().insert(
+                warp::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8"
+                    .parse()
+                    .expect("valid content-type"),
+            );
+            resp.headers_mut().insert(
+                warp::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{filename}\"")
+                    .parse()
+                    .expect("valid content-disposition"),
+            );
+            Ok::<_, Rejection>(resp)
+        })
+}
+
+fn vss_download() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + Send + 'static
+{
+    warp::path("vss")
+        .and(warp::path::param::<String>())
+        .and(warp::path::end())
+        .and(warp::get())
+        .and_then(|filename: String| async move {
+            let Some(path) = vss::vss_path(&filename) else {
                 return Err(warp::reject::not_found());
             };
             let bytes = tokio::fs::read(&path)

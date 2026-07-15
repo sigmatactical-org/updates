@@ -13,6 +13,7 @@ use sigma_theme::site_nav::{AppSiteNav, render_app_site_nav};
 use crate::config;
 use crate::dbc::DbcFile;
 use crate::packages::PackagePage;
+use crate::vss::VssFile;
 
 fn page_header(brand: &str) -> SiteHeader {
     SiteHeader::new(brand)
@@ -68,8 +69,22 @@ fn page_href(page: u32, per_page: u32, query: &str) -> String {
 }
 
 /// Render the package-index home page.
-pub fn render_home_html(page: &PackagePage, schemas: &[DbcFile]) -> askama::Result<String> {
+pub fn render_home_html(
+    page: &PackagePage,
+    schemas: &[DbcFile],
+    vss_files: &[VssFile],
+) -> askama::Result<String> {
     let schema_rows: Vec<SchemaRow> = schemas
+        .iter()
+        .map(|s| SchemaRow {
+            name: s.name.clone(),
+            filename: s.filename.clone(),
+            size_label: format_size(s.size_bytes),
+            download_path: s.download_path.clone(),
+        })
+        .collect();
+
+    let vss_rows: Vec<SchemaRow> = vss_files
         .iter()
         .map(|s| SchemaRow {
             name: s.name.clone(),
@@ -109,6 +124,8 @@ pub fn render_home_html(page: &PackagePage, schemas: &[DbcFile]) -> askama::Resu
         packages: rows,
         schema_count: schema_rows.len(),
         schemas: schema_rows,
+        vss_count: vss_rows.len(),
+        vss_files: vss_rows,
         dbc_source: config::dbc_github_source(),
         packages_dir: config::packages_dir().display().to_string(),
         public_base: config::public_base_url_trimmed(),

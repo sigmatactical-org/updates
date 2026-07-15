@@ -182,6 +182,41 @@
         </table>
       </div>
       {% endif %}
+
+      <h2 class="h5 mt-4">VSS signal tree &amp; CAN mappings</h2>
+      <p class="text-secondary mb-3">
+        {{ vss_count }} file{% if vss_count != 1 %}s{% endif %} — the COVESA-style
+        signal tree plus the per-frame CAN→VSS mapping docs.
+      </p>
+      {% if vss_files.is_empty() %}
+      <p class="text-secondary">No VSS files mirrored yet; check the service log for <code>dbc-sync</code>.</p>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">File</th>
+              <th scope="col">Size</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vss in vss_files %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ vss.name }}</div>
+                <div class="text-secondary small">{{ vss.filename }}</div>
+              </td>
+              <td class="text-secondary">{{ vss.size_label }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ vss.download_path }}">Download</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
     </section>
 
     <section id="panel-publish" class="updates-panel" role="tabpanel" aria-labelledby="tab-publish">
@@ -271,6 +306,24 @@
               <td><code>/dbc/{file}.dbc</code></td>
               <td>public</td>
               <td>Download a schema</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/vss</code></td>
+              <td>public</td>
+              <td>JSON page of VSS files (signal tree + CAN mappings, GitHub mirror)</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/vss/latest</code></td>
+              <td>public</td>
+              <td>Latest VSS metadata (prefers <code>sigma-cluster.vspec</code>)</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/vss/{file}</code></td>
+              <td>public</td>
+              <td>Download a VSS file</td>
             </tr>
             <tr>
               <td><code>GET</code></td>

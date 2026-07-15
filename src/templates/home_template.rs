@@ -13,6 +13,8 @@ pub struct HomeTemplate {
     pub packages: Vec<PackageRow>,
     pub schema_count: usize,
     pub schemas: Vec<SchemaRow>,
+    pub vss_count: usize,
+    pub vss_files: Vec<SchemaRow>,
     pub dbc_source: String,
     pub packages_dir: String,
     pub public_base: String,

@@ -6,12 +6,14 @@ mod error_body;
 mod health;
 mod package_list_query;
 mod packages_response;
+mod vss_response;
 pub(crate) use channels_response::ChannelsResponse;
 pub(crate) use dbc_response::DbcResponse;
 pub(crate) use error_body::ErrorBody;
 pub(crate) use health::Health;
 pub(crate) use package_list_query::PackageListQuery;
 pub(crate) use packages_response::PackagesResponse;
+pub(crate) use vss_response::VssResponse;
 
 use std::sync::Arc;
 
@@ -24,6 +26,7 @@ use crate::bundles;
 use crate::catalog::Catalog;
 use crate::dbc::{self};
 use crate::packages::{self, PublishError};
+use crate::vss::{self};
 
 fn json_error(status: StatusCode, message: impl Into<String>) -> Response {
     warp::reply::with_status(
@@ -276,12 +279,44 @@ pub fn routes(
             None => json_error(StatusCode::NOT_FOUND, "no DBC schemas published"),
         });
 
+    // Like the DBC catalog, the VSS catalog is a read-only GitHub mirror.
+    let vss_list = warp::path!("v1" / "vss")
+        .and(warp::get())
+        .and(warp::query::<PackageListQuery>())
+        .map(|query: PackageListQuery| {
+            let page = vss::list_vss_files_page(
+                query.page.unwrap_or(1),
+                query.per_page.unwrap_or(dbc::DEFAULT_PER_PAGE),
+                query.q.as_deref().unwrap_or(""),
+            );
+            warp::reply::json(&VssResponse {
+                files: page.items,
+                total: page.total,
+                page: page.page,
+                per_page: page.per_page,
+                total_pages: page.total_pages,
+                query: page.query,
+            })
+            .into_response()
+        });
+
+    let vss_latest = warp::path!("v1" / "vss" / "latest")
+        .and(warp::get())
+        .map(|| match vss::latest_vss_file() {
+            Some(file) => {
+                warp::reply::with_status(warp::reply::json(&file), StatusCode::OK).into_response()
+            }
+            None => json_error(StatusCode::NOT_FOUND, "no VSS schemas published"),
+        });
+
     health
         .or(up)
         .or(pkg_collection)
         .or(pkg_delete)
         .or(dbc_collection)
         .or(dbc_latest)
+        .or(vss_list)
+        .or(vss_latest)
         .or(channels)
         .or(latest)
         .or(bundle)
