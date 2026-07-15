@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+./scripts/prepare-local.sh
 cargo build --release
 mkdir -p build/image
 cp -f target/release/sigma-updates build/image/sigma-updates
