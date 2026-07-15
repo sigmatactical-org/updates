@@ -57,6 +57,7 @@ sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", de
 sigma-updates-deb = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
+ureq = { workspace = true }
 warp = { version = "0.4.3", features = ["server"] }
 
 [profile.release]

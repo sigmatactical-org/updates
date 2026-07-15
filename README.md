@@ -28,14 +28,18 @@ Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 | `GET` | `/packages/{file}.deb` | Download a package |
 | `GET` | `/v1/dbc` | JSON page of Sigma Racer `.dbc` schemas (`?page=1&per_page=50&q=`) |
 | `GET` | `/v1/dbc/latest` | Latest Sigma Racer DBC metadata (prefers `sigma-racer.dbc`) |
-| `POST` | `/v1/dbc` | Publish a `.dbc` (`X-Dbc-Filename` + body; auth required) |
-| `DELETE` | `/v1/dbc/{file}.dbc` | Remove a schema file (auth required) |
 | `GET` | `/dbc/{file}.dbc` | Download a DBC schema |
 | `GET` | `/v1/channels` | List RAUC channels |
 | `GET` | `/v1/channel/{name}/latest` | Latest RAUC release metadata |
 | `GET` | `/v1/channel/{name}/bundle/{file}` | Signed `.raucb` bytes, streamed from disk |
 | `POST` | `/v1/channel/{name}/bundle/{file}` | Publish a bundle (streamed body; auth required) |
 | `DELETE` | `/v1/channel/{name}/bundle/{file}` | Remove a bundle (auth required) |
+
+The DBC catalog is a **read-only mirror**: a background task pulls the
+canonical schemas from GitHub (`sigma-racer-wingman` `schemas/can/` by
+default) into a local cache and prunes files removed upstream. There is no
+publish/delete API for schemas — change them in the source repo. When GitHub
+is unreachable, the cached copies keep being served.
 
 ## Client library & CLI
 
@@ -71,7 +75,12 @@ intentionally publish incomplete sets.
 | `PORT` | Listen port (default `8080`) |
 | `UPDATES_PACKAGES_DIR` | Directory of `.deb` files (default `packages`, image: `/app/packages`) |
 | `UPDATES_BUNDLES_DIR` | RAUC bundle store, one `<channel>/bundle/` subdir per channel (default `bundles`, image: `/app/bundles`) |
-| `UPDATES_DBC_DIR` | Directory of Sigma Racer `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
+| `UPDATES_DBC_DIR` | Local cache for mirrored `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
+| `UPDATES_DBC_GITHUB_REPO` | GitHub `owner/repo` of the canonical schemas (default `sigmatactical-org/sigma-racer-wingman`) |
+| `UPDATES_DBC_GITHUB_PATH` | Repo subdirectory holding the schemas (default `schemas/can`) |
+| `UPDATES_DBC_GITHUB_REF` | Git ref mirrored (default `main`) |
+| `UPDATES_DBC_SYNC_SECS` | Seconds between mirror passes (default `300`) |
+| `UPDATES_GITHUB_TOKEN` | Optional GitHub token for rate limits / private mirrors (falls back to `GITHUB_TOKEN`) |
 | `UPDATES_PUBLIC_BASE_URL` | Public base used in `bundle_url` and site links |
 | `UPDATES_DEV_VERSION` | Override the built-in dev channel version |
 | `SIGMA_INTERNAL_TOKEN` | Shared secret for publish/delete (same as other Sigma services) |

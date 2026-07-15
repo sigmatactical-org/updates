@@ -263,40 +263,9 @@ pub fn routes(
                 .into_response()
             });
 
-    let dbc_publish = warp::post()
-        .and(internal_auth())
-        .and(warp::header::optional::<String>("x-dbc-filename"))
-        .and(warp::body::content_length_limit(dbc::MAX_DBC_BYTES))
-        .and(warp::body::bytes())
-        .and_then(
-            |authorization,
-             internal_token,
-             filename_header: Option<String>,
-             body: Bytes| async move {
-                if ensure_internal(authorization, internal_token).is_err() {
-                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
-                }
-                let Some(filename) = filename_header
-                    .map(|s| s.trim().to_owned())
-                    .filter(|s| !s.is_empty())
-                else {
-                    return Ok(json_error(
-                        StatusCode::BAD_REQUEST,
-                        "missing X-Dbc-Filename header",
-                    ));
-                };
-                match dbc::publish_dbc(&filename, &body) {
-                    Ok(file) => Ok(warp::reply::with_status(
-                        warp::reply::json(&file),
-                        StatusCode::CREATED,
-                    )
-                    .into_response()),
-                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
-                }
-            },
-        );
-
-    let dbc_collection = dbc_v1.and(dbc_list.or(dbc_publish));
+    // The DBC catalog is a read-only mirror of the canonical schemas on
+    // GitHub (see `dbc::spawn_github_sync`); there is no publish/delete API.
+    let dbc_collection = dbc_v1.and(dbc_list);
 
     let dbc_latest = warp::path!("v1" / "dbc" / "latest")
         .and(warp::get())
@@ -307,28 +276,12 @@ pub fn routes(
             None => json_error(StatusCode::NOT_FOUND, "no DBC schemas published"),
         });
 
-    let dbc_delete = warp::path!("v1" / "dbc" / String)
-        .and(warp::delete())
-        .and(internal_auth())
-        .and_then(
-            |filename: String, authorization, internal_token| async move {
-                if ensure_internal(authorization, internal_token).is_err() {
-                    return Ok::<_, Rejection>(json_error(StatusCode::NOT_FOUND, "not found"));
-                }
-                match dbc::delete_dbc(&filename) {
-                    Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
-                    Err(err) => Ok(json_error(publish_status(&err), err.to_string())),
-                }
-            },
-        );
-
     health
         .or(up)
         .or(pkg_collection)
         .or(pkg_delete)
         .or(dbc_collection)
         .or(dbc_latest)
-        .or(dbc_delete)
         .or(channels)
         .or(latest)
         .or(bundle)

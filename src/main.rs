@@ -6,6 +6,7 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() {
     let catalog = Arc::new(Catalog::with_dev_defaults());
+    sigma_updates::spawn_dbc_sync();
     let addr = listen_addr();
     let packages = sigma_updates::list_packages();
     eprintln!(

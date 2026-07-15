@@ -20,7 +20,7 @@ use warp::Reply;
 
 pub use catalog::{Catalog, ChannelRelease};
 pub use config::public_base_url_trimmed as public_base_url;
-pub use dbc::{DbcFile, list_dbc_files};
+pub use dbc::{DbcFile, list_dbc_files, spawn_github_sync as spawn_dbc_sync};
 pub use packages::{DebPackage, list_packages};
 
 /// Bind address from `LISTEN_ADDR` (default port 30080).

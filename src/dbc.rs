@@ -1,8 +1,10 @@
 //! Scan and serve Sigma Racer `.dbc` schema files from the local catalog directory.
 
 mod dbc_file;
+mod github_sync;
 
 pub use dbc_file::DbcFile;
+pub use github_sync::spawn as spawn_github_sync;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -28,17 +30,13 @@ pub fn list_dbc_files() -> Vec<DbcFile> {
     list_dbc_files_in(&config::dbc_dir())
 }
 
-/// Prefer the Sigma Racer schema, otherwise the first catalog entry.
+/// Prefer the Sigma Racer schema, then the M7 draft, then the first entry.
 pub fn latest_dbc_file() -> Option<DbcFile> {
     let files = list_dbc_files();
     files
         .iter()
-        .find(|f| {
-            f.filename == "sigma-racer.dbc"
-                || f.name == "sigma-racer"
-                || f.filename == "m7-draft.dbc"
-                || f.name == "m7-draft"
-        })
+        .find(|f| f.name == "sigma-racer")
+        .or_else(|| files.iter().find(|f| f.name == "m7-draft"))
         .cloned()
         .or_else(|| files.into_iter().next())
 }
