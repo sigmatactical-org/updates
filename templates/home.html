@@ -19,6 +19,7 @@
   .updates-tabs label:hover { color: var(--bs-body-color); border-color: rgba(255,255,255,0.28); }
   .updates-panel { display: none; }
   #tab-packages:checked ~ .updates-tabs label[for="tab-packages"],
+  #tab-schemas:checked ~ .updates-tabs label[for="tab-schemas"],
   #tab-publish:checked ~ .updates-tabs label[for="tab-publish"],
   #tab-api:checked ~ .updates-tabs label[for="tab-api"] {
     color: var(--bs-body-color);
@@ -26,6 +27,7 @@
     background: rgba(255,58,0,0.08);
   }
   #tab-packages:checked ~ .updates-panels #panel-packages,
+  #tab-schemas:checked ~ .updates-panels #panel-schemas,
   #tab-publish:checked ~ .updates-panels #panel-publish,
   #tab-api:checked ~ .updates-panels #panel-api { display: block; }
   .updates-tabs-input { position: absolute; opacity: 0; pointer-events: none; }
@@ -45,11 +47,13 @@
   </header>
 
   <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-packages" checked />
+  <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-schemas" />
   <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-publish" />
   <input class="updates-tabs-input" type="radio" name="updates-tab" id="tab-api" />
 
   <div class="updates-tabs" role="tablist" aria-label="Updates sections">
     <label for="tab-packages" role="tab">Packages</label>
+    <label for="tab-schemas" role="tab">Schemas</label>
     <label for="tab-publish" role="tab">Publish</label>
     <label for="tab-api" role="tab">API</label>
   </div>
@@ -143,6 +147,43 @@
       {% endif %}
     </section>
 
+    <section id="panel-schemas" class="updates-panel" role="tabpanel" aria-labelledby="tab-schemas">
+      <p class="text-secondary mb-3">
+        Sigma Racer CAN dictionaries ({{ schema_count }} schema{% if schema_count != 1 %}s{% endif %}),
+        mirrored read-only from <code>{{ dbc_source }}</code> on GitHub.
+        To change one, push to the source repo — the catalog refreshes itself.
+      </p>
+      {% if schemas.is_empty() %}
+      <p class="text-secondary">No schemas mirrored yet; check the service log for <code>dbc-sync</code>.</p>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Schema</th>
+              <th scope="col">Size</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for schema in schemas %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ schema.name }}</div>
+                <div class="text-secondary small">{{ schema.filename }}</div>
+              </td>
+              <td class="text-secondary">{{ schema.size_label }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ schema.download_path }}">Download</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+
     <section id="panel-publish" class="updates-panel" role="tabpanel" aria-labelledby="tab-publish">
       <div
         id="updates-publish"
@@ -212,6 +253,24 @@
               <td><code>/packages/{file}.deb</code></td>
               <td>public</td>
               <td>Download a package</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/dbc</code></td>
+              <td>public</td>
+              <td>JSON page of Sigma Racer <code>.dbc</code> schemas (GitHub mirror)</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/v1/dbc/latest</code></td>
+              <td>public</td>
+              <td>Latest schema metadata (prefers <code>sigma-racer.dbc</code>)</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/dbc/{file}.dbc</code></td>
+              <td>public</td>
+              <td>Download a schema</td>
             </tr>
             <tr>
               <td><code>GET</code></td>

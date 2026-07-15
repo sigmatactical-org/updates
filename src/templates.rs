@@ -1,7 +1,9 @@
 mod home_template;
 mod package_row;
+mod schema_row;
 pub use home_template::HomeTemplate;
 pub use package_row::PackageRow;
+pub use schema_row::SchemaRow;
 
 use askama::Template;
 use sigma_theme::copyright_years;
@@ -9,6 +11,7 @@ use sigma_theme::nav::SiteHeader;
 use sigma_theme::site_nav::{AppSiteNav, render_app_site_nav};
 
 use crate::config;
+use crate::dbc::DbcFile;
 use crate::packages::PackagePage;
 
 fn page_header(brand: &str) -> SiteHeader {
@@ -65,7 +68,17 @@ fn page_href(page: u32, per_page: u32, query: &str) -> String {
 }
 
 /// Render the package-index home page.
-pub fn render_home_html(page: &PackagePage) -> askama::Result<String> {
+pub fn render_home_html(page: &PackagePage, schemas: &[DbcFile]) -> askama::Result<String> {
+    let schema_rows: Vec<SchemaRow> = schemas
+        .iter()
+        .map(|s| SchemaRow {
+            name: s.name.clone(),
+            filename: s.filename.clone(),
+            size_label: format_size(s.size_bytes),
+            download_path: s.download_path.clone(),
+        })
+        .collect();
+
     let rows: Vec<PackageRow> = page
         .items
         .iter()
@@ -94,6 +107,9 @@ pub fn render_home_html(page: &PackagePage) -> askama::Result<String> {
         title: "Sigma Updates".to_string(),
         package_count: page.total,
         packages: rows,
+        schema_count: schema_rows.len(),
+        schemas: schema_rows,
+        dbc_source: config::dbc_github_source(),
         packages_dir: config::packages_dir().display().to_string(),
         public_base: config::public_base_url_trimmed(),
         identity_base: format!("{identity_root}/"),

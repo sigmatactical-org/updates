@@ -37,7 +37,7 @@ fn home() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + S
                 query.per_page.unwrap_or(packages::DEFAULT_PER_PAGE),
                 query.q.as_deref().unwrap_or(""),
             );
-            templates::render_home_html(&page)
+            templates::render_home_html(&page, &dbc::list_dbc_files())
                 .map(warp::reply::html)
                 .map_err(|_| warp::reject::not_found())
         })
