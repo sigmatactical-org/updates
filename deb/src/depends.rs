@@ -1,73 +1,14 @@
-use serde::{Deserialize, Serialize};
+//! Parse and evaluate Debian dependency fields.
 
-/// A package name, optionally with an architecture qualifier (`pkg:amd64`).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct PackageRef {
-    pub name: String,
-}
+mod dependency_clause;
+mod dependency_expr;
+mod package_ref;
+mod version_constraint;
 
-impl PackageRef {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum VersionConstraint {
-    /// No version constraint.
-    Any,
-    Eq(String),
-    Ne(String),
-    Gt(String),
-    Ge(String),
-    Lt(String),
-    Le(String),
-}
-
-impl VersionConstraint {
-    pub fn matches(&self, version: &str) -> bool {
-        use debversion::Version;
-        let Ok(have) = version.parse::<Version>() else {
-            return matches!(self, Self::Any) || matches!(self, Self::Eq(v) if v == version);
-        };
-        match self {
-            Self::Any => true,
-            Self::Eq(v) => v.parse::<Version>().ok().is_some_and(|need| have == need),
-            Self::Ne(v) => v.parse::<Version>().ok().is_some_and(|need| have != need),
-            Self::Gt(v) => v.parse::<Version>().ok().is_some_and(|need| have > need),
-            Self::Ge(v) => v.parse::<Version>().ok().is_some_and(|need| have >= need),
-            Self::Lt(v) => v.parse::<Version>().ok().is_some_and(|need| have < need),
-            Self::Le(v) => v.parse::<Version>().ok().is_some_and(|need| have <= need),
-        }
-    }
-}
-
-/// One alternative in a dependency clause (`pkg (>= 1) | other`).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DependencyClause {
-    pub package: PackageRef,
-    pub constraint: VersionConstraint,
-}
-
-/// AND-combined dependency expression (one comma-separated entry).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DependencyExpr {
-    pub alternatives: Vec<DependencyClause>,
-}
-
-impl DependencyExpr {
-    /// True when at least one alternative is satisfied by `available`.
-    pub fn is_satisfied_by<'a, I>(&self, available: I) -> bool
-    where
-        I: IntoIterator<Item = (&'a str, &'a str)>,
-    {
-        let pkgs: Vec<(&str, &str)> = available.into_iter().collect();
-        self.alternatives.iter().any(|alt| {
-            pkgs.iter()
-                .any(|(name, ver)| name == &alt.package.name && alt.constraint.matches(ver))
-        })
-    }
-}
+pub use dependency_clause::DependencyClause;
+pub use dependency_expr::DependencyExpr;
+pub use package_ref::PackageRef;
+pub use version_constraint::VersionConstraint;
 
 /// Parse a Debian `Depends` / `Pre-Depends` field into AND-of-OR expressions.
 pub fn parse_depends_field(field: &str) -> Vec<DependencyExpr> {
@@ -183,5 +124,12 @@ mod tests {
         assert!(exprs[0].is_satisfied_by([("foo", "1.2")]));
         assert!(!exprs[0].is_satisfied_by([("foo", "0.9")]));
         assert!(exprs[0].is_satisfied_by([("bar", "1")]));
+    }
+
+    #[test]
+    fn displays_debian_control_syntax() {
+        let exprs = parse_depends_field("foo (>= 1.0) | bar, baz");
+        assert_eq!(exprs[0].to_string(), "foo (>= 1.0) | bar");
+        assert_eq!(exprs[1].to_string(), "baz");
     }
 }

@@ -1,71 +1,56 @@
-use std::io::{Cursor, Read};
-use std::path::Path;
+//! Extract control metadata from `.deb` archives.
 
-use thiserror::Error;
+mod deb_error;
+
+pub use deb_error::DebError;
+
+use std::fs::File;
+use std::io::{BufReader, Cursor, Read};
+use std::path::Path;
 
 use crate::control::DebControl;
 
-#[derive(Debug, Error)]
-pub enum DebError {
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("not a debian package archive: {0}")]
-    Archive(String),
-    #[error("control parse error: {0}")]
-    Control(String),
-}
-
-/// Inspect a `.deb` file on disk.
+/// Inspect a `.deb` file on disk, streaming the `ar` archive off the file
+/// rather than loading the whole package into memory.
 pub fn inspect_deb_file(path: &Path) -> Result<DebControl, DebError> {
-    let bytes = std::fs::read(path)?;
-    inspect_deb_bytes(&bytes)
+    inspect_deb_read(BufReader::new(File::open(path)?))
 }
 
 /// Inspect `.deb` bytes in memory.
 pub fn inspect_deb_bytes(bytes: &[u8]) -> Result<DebControl, DebError> {
-    let mut archive = ar::Archive::new(Cursor::new(bytes));
-    let mut control_tar: Option<(String, Vec<u8>)> = None;
-
-    while let Some(entry) = archive.next_entry() {
-        let mut entry = entry.map_err(|e| DebError::Archive(e.to_string()))?;
-        let name = String::from_utf8_lossy(entry.header().identifier()).into_owned();
-        if name.starts_with("control.tar") {
-            let mut buf = Vec::new();
-            entry.read_to_end(&mut buf)?;
-            control_tar = Some((name, buf));
-            break;
-        }
-    }
-
-    let Some((name, data)) = control_tar else {
-        return Err(DebError::Archive("missing control.tar.* member".into()));
-    };
-
-    let control_text = read_control_member(&name, &data)?;
-    DebControl::parse(&control_text).map_err(DebError::Control)
+    inspect_deb_read(Cursor::new(bytes))
 }
 
-fn read_control_member(archive_name: &str, data: &[u8]) -> Result<String, DebError> {
-    let uncompressed: Vec<u8> = if archive_name.ends_with(".gz") {
-        let mut dec = flate2::read::GzDecoder::new(data);
-        let mut out = Vec::new();
-        dec.read_to_end(&mut out)?;
-        out
+/// Inspect a `.deb` archive from any reader. The `ar` and `tar` members are
+/// streamed; only the control file text is buffered.
+pub fn inspect_deb_read<R: Read>(reader: R) -> Result<DebControl, DebError> {
+    let mut archive = ar::Archive::new(reader);
+    while let Some(entry) = archive.next_entry() {
+        let entry = entry.map_err(|e| DebError::Archive(e.to_string()))?;
+        let name = String::from_utf8_lossy(entry.header().identifier()).into_owned();
+        if name.starts_with("control.tar") {
+            let control_text = read_control_member(&name, entry)?;
+            return DebControl::parse(&control_text).map_err(DebError::Control);
+        }
+    }
+    Err(DebError::Archive("missing control.tar.* member".into()))
+}
+
+fn read_control_member(archive_name: &str, data: impl Read) -> Result<String, DebError> {
+    let uncompressed: Box<dyn Read> = if archive_name.ends_with(".gz") {
+        Box::new(flate2::read::GzDecoder::new(data))
     } else if archive_name.ends_with(".xz") {
-        let mut dec = xz2::read::XzDecoder::new(data);
-        let mut out = Vec::new();
-        dec.read_to_end(&mut out)?;
-        out
+        Box::new(xz2::read::XzDecoder::new(data))
     } else if archive_name.ends_with(".zst") {
         return Err(DebError::Archive(
             "control.tar.zst is not supported yet".into(),
         ));
     } else {
         // Uncompressed control.tar
-        data.to_vec()
+        Box::new(data)
     };
 
-    let mut tar = tar::Archive::new(Cursor::new(uncompressed));
+    let mut tar = tar::Archive::new(uncompressed);
     for entry in tar
         .entries()
         .map_err(|e| DebError::Archive(e.to_string()))?

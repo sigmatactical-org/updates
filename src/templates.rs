@@ -1,6 +1,9 @@
+//! Askama rendering for the HTML index.
+
 mod home_template;
 mod package_row;
 mod schema_row;
+
 pub use home_template::HomeTemplate;
 pub use package_row::PackageRow;
 pub use schema_row::SchemaRow;
@@ -9,10 +12,12 @@ use askama::Template;
 use sigma_theme::copyright_years;
 use sigma_theme::nav::{SiteHeader, SiteMenuSection, site_menu};
 use sigma_theme::site_nav::{AppSiteNav, render_app_site_nav};
+use sigma_updates_deb::human_size;
 
 use crate::config;
 use crate::dbc::DbcFile;
-use crate::packages::PackagePage;
+use crate::listing::Page;
+use crate::packages::DebPackage;
 use crate::vss::VssFile;
 
 fn page_header() -> SiteHeader {
@@ -33,19 +38,6 @@ fn site_nav() -> Result<String, askama::Error> {
     })
 }
 
-fn percent_encode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for b in value.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
-}
-
 fn sign_in_url() -> String {
     let identity_root = config::identity_public_base_url()
         .trim_end_matches('/')
@@ -54,8 +46,8 @@ fn sign_in_url() -> String {
     let callback = format!("{identity_root}/auth/callback");
     format!(
         "{identity_root}/auth/login?app_uri={}&redirect_uri={}&scope=openid",
-        percent_encode(&app_uri),
-        percent_encode(&callback)
+        urlencoding::encode(&app_uri),
+        urlencoding::encode(&callback)
     )
 }
 
@@ -63,35 +55,34 @@ fn page_href(page: u32, per_page: u32, query: &str) -> String {
     let mut href = format!("/?page={page}&per_page={per_page}");
     if !query.is_empty() {
         href.push_str("&q=");
-        href.push_str(&percent_encode(query));
+        href.push_str(&urlencoding::encode(query));
     }
     href
 }
 
+fn schema_row(name: &str, filename: &str, size_bytes: u64, download_path: &str) -> SchemaRow {
+    SchemaRow {
+        name: name.to_owned(),
+        filename: filename.to_owned(),
+        size_label: human_size(size_bytes),
+        download_path: download_path.to_owned(),
+    }
+}
+
 /// Render the package-index home page.
 pub fn render_home_html(
-    page: &PackagePage,
+    page: &Page<DebPackage>,
     schemas: &[DbcFile],
     vss_files: &[VssFile],
 ) -> askama::Result<String> {
     let schema_rows: Vec<SchemaRow> = schemas
         .iter()
-        .map(|s| SchemaRow {
-            name: s.name.clone(),
-            filename: s.filename.clone(),
-            size_label: format_size(s.size_bytes),
-            download_path: s.download_path.clone(),
-        })
+        .map(|s| schema_row(&s.name, &s.filename, s.size_bytes, &s.download_path))
         .collect();
 
     let vss_rows: Vec<SchemaRow> = vss_files
         .iter()
-        .map(|s| SchemaRow {
-            name: s.name.clone(),
-            filename: s.filename.clone(),
-            size_label: format_size(s.size_bytes),
-            download_path: s.download_path.clone(),
-        })
+        .map(|s| schema_row(&s.name, &s.filename, s.size_bytes, &s.download_path))
         .collect();
 
     let rows: Vec<PackageRow> = page
@@ -101,7 +92,7 @@ pub fn render_home_html(
             name: p.name.clone(),
             version: p.version.clone(),
             architecture: p.architecture.clone(),
-            size_label: format_size(p.size_bytes),
+            size_label: human_size(p.size_bytes),
             download_path: p.download_path.clone(),
             filename: p.filename.clone(),
         })
@@ -156,17 +147,4 @@ pub fn render_home_html(
         range_end,
     }
     .render()
-}
-
-fn format_size(bytes: u64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-    let b = bytes as f64;
-    if b >= MB {
-        format!("{:.1} MiB", b / MB)
-    } else if b >= KB {
-        format!("{:.1} KiB", b / KB)
-    } else {
-        format!("{bytes} B")
-    }
 }

@@ -135,7 +135,6 @@ mod tests {
     #[tokio::test]
     async fn stores_and_deletes_atomically() {
         let dir = tempfile::tempdir().unwrap();
-        // SAFETY-free env shim: point the bundles dir at the temp dir.
         temp_env::async_with_vars(
             [("UPDATES_BUNDLES_DIR", Some(dir.path().to_str().unwrap()))],
             async {

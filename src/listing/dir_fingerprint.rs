@@ -6,7 +6,7 @@ use std::time::SystemTime;
 
 /// Summary of a directory's matching files; equality means "unchanged".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DirFingerprint {
+pub struct DirFingerprint {
     /// Number of matching files.
     pub(crate) count: u64,
     /// Sum of their sizes.
@@ -15,9 +15,8 @@ pub(crate) struct DirFingerprint {
     pub(crate) newest_mtime_secs: u64,
 }
 
-/// Fingerprint every file in `dir` whose extension equals `ext`
-/// (case-insensitive, no leading dot).
-pub(crate) fn dir_fingerprint(dir: &Path, ext: &str) -> DirFingerprint {
+/// Fingerprint every file in `dir` whose name is `accept`ed.
+pub(crate) fn dir_fingerprint(dir: &Path, accept: impl Fn(&str) -> bool) -> DirFingerprint {
     let Ok(entries) = fs::read_dir(dir) else {
         return DirFingerprint {
             count: 0,
@@ -29,17 +28,15 @@ pub(crate) fn dir_fingerprint(dir: &Path, ext: &str) -> DirFingerprint {
     let mut total_bytes = 0u64;
     let mut newest_mtime_secs = 0u64;
     for entry in entries.flatten() {
-        let path = entry.path();
-        if !path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case(ext))
-        {
+        if !entry.file_name().to_str().is_some_and(&accept) {
             continue;
         }
         let Ok(meta) = entry.metadata() else {
             continue;
         };
+        if !meta.is_file() {
+            continue;
+        }
         count += 1;
         total_bytes += meta.len();
         let mtime = meta

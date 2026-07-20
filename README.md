@@ -21,7 +21,8 @@ Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/health` | Liveness |
+| `GET` | `/health` | Uniform sigma-pg health report (JSON checks) |
+| `GET` | `/up` | Liveness |
 | `GET` | `/v1/packages` | JSON page (`?page=1&per_page=50&q=`; max 500/page) |
 | `POST` | `/v1/packages` | Publish a `.deb` (`X-Package-Filename` + body; auth required) |
 | `DELETE` | `/v1/packages/{file}.deb` | Remove a package (auth required) |

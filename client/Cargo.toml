@@ -16,3 +16,4 @@ serde_json = { workspace = true }
 sigma-updates-deb = { workspace = true }
 thiserror = { workspace = true }
 ureq = { workspace = true }
+urlencoding = { workspace = true }

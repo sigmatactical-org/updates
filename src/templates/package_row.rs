@@ -1,8 +1,6 @@
 //! [`PackageRow`].
 
-#[allow(unused_imports)]
-use super::*;
-
+/// One row of the package table.
 #[derive(Debug)]
 pub struct PackageRow {
     pub name: String,

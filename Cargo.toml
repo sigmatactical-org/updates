@@ -26,6 +26,7 @@ sigma-updates-deb = { path = "deb" }
 tar = "0.4.46"
 thiserror = "2.0.18"
 ureq = { version = "3.3.0", default-features = false, features = ["native-tls", "gzip"] }
+urlencoding = "2.1.3"
 xz2 = "0.1.7"
 
 [package]
@@ -54,10 +55,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git" }
 sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", default-features = false, features = ["askama", "warp"] }
+sigma-updates-client = { workspace = true }
 sigma-updates-deb = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
 ureq = { workspace = true }
+urlencoding = { workspace = true }
 warp = { version = "0.4.3", features = ["server"] }
 
 [profile.release]
@@ -68,4 +71,5 @@ strip = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
+warp = { version = "0.4.3", features = ["server", "test"] }
 temp-env = { version = "0.3.6", features = ["async_closure"] }

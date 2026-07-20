@@ -1,36 +1,22 @@
 //! Plan and execute package pushes with dependency checking and topo order.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::path::PathBuf;
+mod local_package;
+mod missing_dependency;
+mod push_plan;
+mod push_report;
 
-use sigma_updates_deb::{DebControl, DependencyExpr, inspect_deb_file, satisfies};
+pub use local_package::LocalPackage;
+pub use missing_dependency::MissingDependency;
+pub use push_plan::PushPlan;
+pub use push_report::PushReport;
 
-use crate::{ClientError, DebPackage, UpdatesClient};
+use std::collections::{HashMap, VecDeque};
+use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone)]
-pub struct LocalPackage {
-    pub path: PathBuf,
-    pub filename: String,
-    pub control: DebControl,
-}
+use sigma_updates_deb::{DebPackage, inspect_deb_file, satisfies};
 
-#[derive(Debug, Clone)]
-pub struct MissingDependency {
-    pub package: String,
-    pub missing: Vec<DependencyExpr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PushPlan {
-    /// Packages to publish, dependencies first.
-    pub order: Vec<LocalPackage>,
-    pub missing: Vec<MissingDependency>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PushReport {
-    pub published: Vec<DebPackage>,
-}
+use crate::client_error::ClientError;
+use crate::updates_client::UpdatesClient;
 
 /// Inspect local `.deb` paths into structured packages.
 pub fn load_local_packages(paths: &[PathBuf]) -> Result<Vec<LocalPackage>, ClientError> {
@@ -54,7 +40,11 @@ pub fn load_local_packages(paths: &[PathBuf]) -> Result<Vec<LocalPackage>, Clien
 /// Build a publish plan: topo-sort locals and report unsatisfied dependencies
 /// against the remote index (+ other locals in the batch).
 pub fn plan_push(remote: &[DebPackage], locals: &[LocalPackage]) -> Result<PushPlan, ClientError> {
-    let order = topo_sort(locals)?;
+    let order: Vec<LocalPackage> = topo_sort(locals)?
+        .into_iter()
+        .map(|i| locals[i].clone())
+        .collect();
+
     let mut available: HashMap<String, String> = HashMap::new();
     for pkg in remote {
         available.insert(pkg.name.clone(), pkg.version.clone());
@@ -106,7 +96,7 @@ pub fn push_packages(
                 let deps = m
                     .missing
                     .iter()
-                    .map(format_dep_expr)
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{} needs: {deps}", m.package)
@@ -133,58 +123,45 @@ pub fn check_packages(client: &UpdatesClient, paths: &[PathBuf]) -> Result<PushP
     plan_push(&remote, &locals)
 }
 
-fn topo_sort(locals: &[LocalPackage]) -> Result<Vec<LocalPackage>, ClientError> {
-    let names: HashSet<String> = locals.iter().map(|p| p.control.package.clone()).collect();
+/// Order `locals` so every package follows the batch-local packages it depends
+/// on. Returns indices into `locals`; no package is cloned.
+fn topo_sort(locals: &[LocalPackage]) -> Result<Vec<usize>, ClientError> {
+    let index_of: HashMap<&str, usize> = locals
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (p.control.package.as_str(), i))
+        .collect();
 
     // Edge: dep -> package (dep must come first) only for deps satisfied by other locals.
-    let mut indegree: HashMap<String, usize> = locals
-        .iter()
-        .map(|p| (p.control.package.clone(), 0usize))
-        .collect();
-    let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+    let mut indegree = vec![0usize; locals.len()];
+    let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); locals.len()];
 
-    for pkg in locals {
+    for (i, pkg) in locals.iter().enumerate() {
         for expr in pkg.control.all_depends() {
             for alt in &expr.alternatives {
-                let dep_name = &alt.package.name;
-                if names.contains(dep_name) && dep_name != &pkg.control.package {
-                    adjacency
-                        .entry(dep_name.clone())
-                        .or_default()
-                        .push(pkg.control.package.clone());
-                    *indegree.entry(pkg.control.package.clone()).or_default() += 1;
+                if let Some(&dep) = index_of.get(alt.package.name.as_str())
+                    && dep != i
+                {
+                    adjacency[dep].push(i);
+                    indegree[i] += 1;
                     break; // one edge per AND-clause is enough for ordering
                 }
             }
         }
     }
 
-    let mut queue: VecDeque<String> = indegree
-        .iter()
-        .filter(|(_, d)| **d == 0)
-        .map(|(n, _)| n.clone())
-        .collect();
-    queue.make_contiguous().sort(); // stable deterministic order
+    // Stable deterministic order: roots by package name.
+    let mut roots: Vec<usize> = (0..locals.len()).filter(|&i| indegree[i] == 0).collect();
+    roots.sort_by(|&a, &b| locals[a].control.package.cmp(&locals[b].control.package));
+    let mut queue: VecDeque<usize> = roots.into();
 
-    let by_name: HashMap<_, _> = locals
-        .iter()
-        .map(|p| (p.control.package.clone(), p.clone()))
-        .collect();
-
-    let mut ordered = Vec::new();
-    while let Some(name) = queue.pop_front() {
-        let pkg = by_name
-            .get(&name)
-            .ok_or_else(|| ClientError::Message(format!("internal: missing {name}")))?;
-        ordered.push(pkg.clone());
-        if let Some(children) = adjacency.get(&name) {
-            for child in children {
-                if let Some(d) = indegree.get_mut(child) {
-                    *d = d.saturating_sub(1);
-                    if *d == 0 {
-                        queue.push_back(child.clone());
-                    }
-                }
+    let mut ordered = Vec::with_capacity(locals.len());
+    while let Some(i) = queue.pop_front() {
+        ordered.push(i);
+        for &child in &adjacency[i] {
+            indegree[child] = indegree[child].saturating_sub(1);
+            if indegree[child] == 0 {
+                queue.push_back(child);
             }
         }
     }
@@ -195,26 +172,6 @@ fn topo_sort(locals: &[LocalPackage]) -> Result<Vec<LocalPackage>, ClientError> 
         ));
     }
     Ok(ordered)
-}
-
-fn format_dep_expr(expr: &DependencyExpr) -> String {
-    expr.alternatives
-        .iter()
-        .map(|alt| {
-            use sigma_updates_deb::VersionConstraint;
-            let c = match &alt.constraint {
-                VersionConstraint::Any => String::new(),
-                VersionConstraint::Eq(v) => format!(" (= {v})"),
-                VersionConstraint::Ne(v) => format!(" (!= {v})"),
-                VersionConstraint::Gt(v) => format!(" (>> {v})"),
-                VersionConstraint::Ge(v) => format!(" (>= {v})"),
-                VersionConstraint::Lt(v) => format!(" (<< {v})"),
-                VersionConstraint::Le(v) => format!(" (<= {v})"),
-            };
-            format!("{}{c}", alt.package.name)
-        })
-        .collect::<Vec<_>>()
-        .join(" | ")
 }
 
 /// Collect `.deb` paths from files and directories (directories are scanned recursively).
@@ -240,10 +197,7 @@ pub fn collect_deb_paths(inputs: &[PathBuf]) -> Result<Vec<PathBuf>, ClientError
     Ok(out)
 }
 
-fn collect_deb_paths_recursive(
-    dir: &std::path::Path,
-    out: &mut Vec<PathBuf>,
-) -> Result<(), ClientError> {
+fn collect_deb_paths_recursive(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ClientError> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -258,4 +212,39 @@ fn collect_deb_paths_recursive(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sigma_updates_deb::DebControl;
+
+    fn local(name: &str, depends: &str) -> LocalPackage {
+        let control = DebControl::parse(&format!(
+            "Package: {name}\nVersion: 1.0\nArchitecture: all\nDepends: {depends}\n"
+        ))
+        .expect("control parses");
+        LocalPackage {
+            path: PathBuf::from(format!("{name}.deb")),
+            filename: format!("{name}.deb"),
+            control,
+        }
+    }
+
+    #[test]
+    fn orders_dependencies_first() {
+        let locals = vec![local("b", "a"), local("a", ""), local("c", "b")];
+        let order = topo_sort(&locals).expect("acyclic");
+        let names: Vec<&str> = order
+            .iter()
+            .map(|&i| locals[i].control.package.as_str())
+            .collect();
+        assert_eq!(names, ["a", "b", "c"]);
+    }
+
+    #[test]
+    fn detects_cycles() {
+        let locals = vec![local("a", "b"), local("b", "a")];
+        assert!(topo_sort(&locals).is_err());
+    }
 }

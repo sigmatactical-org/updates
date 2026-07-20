@@ -1,8 +1,6 @@
 //! [`SchemaRow`].
 
-#[allow(unused_imports)]
-use super::*;
-
+/// One row of the DBC/VSS schema tables.
 #[derive(Debug)]
 pub struct SchemaRow {
     pub name: String,

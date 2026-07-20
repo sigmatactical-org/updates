@@ -1,10 +1,9 @@
 //! [`ChannelRelease`].
 
-#[allow(unused_imports)]
-use super::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// One release published on an OTA channel.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChannelRelease {
     pub channel: String,

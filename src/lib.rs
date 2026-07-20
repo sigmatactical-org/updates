@@ -14,48 +14,34 @@ mod vss;
 mod web;
 
 use std::convert::Infallible;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use warp::Filter;
 use warp::Reply;
 
 pub use catalog::{Catalog, ChannelRelease};
 pub use config::public_base_url_trimmed as public_base_url;
-pub use dbc::{DbcFile, list_dbc_files, spawn_github_sync as spawn_dbc_sync};
-pub use packages::{DebPackage, list_packages};
-pub use vss::{VssFile, list_vss_files};
+pub use dbc::{DbcCatalog, DbcFile, spawn_github_sync as spawn_dbc_sync};
+pub use packages::{DebPackage, PackageCatalog};
+pub use vss::{VssCatalog, VssFile};
 
-/// Bind address from `LISTEN_ADDR` (default port 30080).
-pub fn listen_addr() -> std::net::SocketAddr {
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8080);
-    std::net::SocketAddr::from(([0, 0, 0, 0], port))
+/// List the published `.deb` packages (startup banner, tests).
+#[must_use]
+pub fn list_packages() -> Vec<DebPackage> {
+    listing::list::<PackageCatalog>()
 }
 
-fn content_security_policy() -> String {
-    let identity_origin = config::identity_public_origin();
-    format!(
-        "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; \
-         img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; \
-         font-src 'self'; connect-src 'self' {identity_origin}; form-action 'self'"
-    )
-}
-
-/// HTML site + JSON API + theme static assets.
+/// HTML site + JSON API + theme static assets, with the shared Sigma
+/// security headers and themed error pages.
 pub fn routes(
     catalog: Arc<Catalog>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Infallible> + Clone + Send + 'static {
-    use warp::reply::with::header;
-
-    web::routes()
-        .or(api::routes(catalog))
-        .or(sigma_theme::warp::static_files())
-        .or(sigma_theme::warp::favicon())
-        .recover(sigma_theme::warp::handle_rejection)
-        .with(header("content-security-policy", content_security_policy()))
-        .with(header("x-content-type-options", "nosniff"))
-        .with(header("x-frame-options", "DENY"))
-        .with(header("referrer-policy", "strict-origin-when-cross-origin"))
+    // The theme's `security_headers` borrows the CSP fragment for as long as
+    // the returned filter lives, so the origin is resolved once per process.
+    static IDENTITY_ORIGIN: OnceLock<String> = OnceLock::new();
+    let identity_origin = IDENTITY_ORIGIN.get_or_init(config::identity_public_origin);
+    sigma_theme::warp::security_headers(
+        sigma_theme::warp::site_routes(web::routes(), api::routes(catalog)),
+        identity_origin,
+    )
 }

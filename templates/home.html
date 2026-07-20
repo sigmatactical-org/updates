@@ -3,36 +3,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_head %}
-<style>
-  .updates-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem; }
-  .updates-tabs label {
-    cursor: pointer;
-    padding: 0.45rem 0.9rem;
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 0.35rem;
-    color: var(--bs-secondary-color);
-    background: transparent;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .updates-tabs label:hover { color: var(--bs-body-color); border-color: rgba(255,255,255,0.28); }
-  .updates-panel { display: none; }
-  #tab-packages:checked ~ .updates-tabs label[for="tab-packages"],
-  #tab-schemas:checked ~ .updates-tabs label[for="tab-schemas"],
-  #tab-publish:checked ~ .updates-tabs label[for="tab-publish"],
-  #tab-api:checked ~ .updates-tabs label[for="tab-api"] {
-    color: var(--bs-body-color);
-    border-color: rgba(255,138,58,0.55);
-    background: rgba(255,58,0,0.08);
-  }
-  #tab-packages:checked ~ .updates-panels #panel-packages,
-  #tab-schemas:checked ~ .updates-panels #panel-schemas,
-  #tab-publish:checked ~ .updates-panels #panel-publish,
-  #tab-api:checked ~ .updates-panels #panel-api { display: block; }
-  .updates-tabs-input { position: absolute; opacity: 0; pointer-events: none; }
-  .api-endpoint code { user-select: all; }
-</style>
+<link rel="stylesheet" href="/css/home.css">
 {% endblock %}
 
 {% block main_class %}updates-main{% endblock %}

@@ -1,6 +1,7 @@
 //! OIDC helpers for machine (client-credentials) auth.
 
-use crate::ClientError;
+use crate::agent::shared_agent;
+use crate::client_error::ClientError;
 
 #[derive(Debug, serde::Deserialize)]
 struct TokenResponse {
@@ -13,19 +14,7 @@ pub fn client_credentials_token(
     client_id: &str,
     client_secret: &str,
 ) -> Result<String, ClientError> {
-    let agent = ureq::Agent::config_builder()
-        .timeout_connect(Some(std::time::Duration::from_secs(10)))
-        .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
-        .timeout_recv_body(Some(std::time::Duration::from_secs(30)))
-        .http_status_as_error(false)
-        .tls_config(
-            ureq::tls::TlsConfig::builder()
-                .provider(ureq::tls::TlsProvider::NativeTls)
-                .build(),
-        )
-        .build()
-        .new_agent();
-    let mut resp = agent
+    let mut resp = shared_agent()
         .post(token_url.trim())
         .send_form([
             ("grant_type", "client_credentials"),
