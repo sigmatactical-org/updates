@@ -6,7 +6,7 @@
 //! buffered in memory. Uploads stream to a temp file and are renamed into
 //! place atomically.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bytes::Buf;
 use futures_util::{Stream, StreamExt};
@@ -72,18 +72,13 @@ where
         let mut chunk = match chunk {
             Ok(chunk) => chunk,
             Err(err) => {
-                drop(file);
-                let _ = tokio::fs::remove_file(&tmp).await;
-                return Err(PublishError::InvalidContent(format!(
-                    "upload aborted: {err}"
-                )));
+                let err = PublishError::InvalidContent(format!("upload aborted: {err}"));
+                return abort(file, &tmp, err).await;
             }
         };
         written += chunk.remaining() as u64;
         if written > MAX_BUNDLE_BYTES {
-            drop(file);
-            let _ = tokio::fs::remove_file(&tmp).await;
-            return Err(PublishError::TooLarge);
+            return abort(file, &tmp, PublishError::TooLarge).await;
         }
         while chunk.has_remaining() {
             let part = chunk.chunk();
@@ -93,14 +88,19 @@ where
         }
     }
     if written == 0 {
-        drop(file);
-        let _ = tokio::fs::remove_file(&tmp).await;
-        return Err(PublishError::EmptyBody);
+        return abort(file, &tmp, PublishError::EmptyBody).await;
     }
     file.sync_all().await?;
     drop(file);
     tokio::fs::rename(&tmp, &dest).await?;
     Ok(written)
+}
+
+/// Discard a half-written upload and report why.
+async fn abort(file: tokio::fs::File, tmp: &Path, err: PublishError) -> Result<u64, PublishError> {
+    drop(file);
+    let _ = tokio::fs::remove_file(tmp).await;
+    Err(err)
 }
 
 /// Remove a published bundle.
