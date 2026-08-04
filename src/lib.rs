@@ -5,7 +5,7 @@
 mod api;
 mod bundles;
 mod catalog;
-mod config;
+pub mod config;
 mod dbc;
 mod listing;
 mod packages;

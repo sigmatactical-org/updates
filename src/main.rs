@@ -6,7 +6,8 @@ use sigma_theme::warp::{listen_addr_from_env, serve};
 use sigma_updates::{Catalog, list_packages, routes};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    sigma_updates::config::validate()?;
     let catalog = Arc::new(Catalog::with_dev_defaults());
     sigma_updates::spawn_dbc_sync();
     eprintln!(
@@ -15,8 +16,6 @@ async fn main() {
         catalog.channels()
     );
     let addr = listen_addr_from_env();
-    if let Err(e) = serve("sigma-updates", addr, routes(catalog)).await {
-        eprintln!("failed to bind {addr}: {e}");
-        std::process::exit(1);
-    }
+    serve("sigma-updates", addr, routes(catalog)).await?;
+    Ok(())
 }

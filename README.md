@@ -10,12 +10,34 @@ bundles (Wingman).
 
 Repository: https://github.com/sigmatactical-org/updates
 
-## Web UI
+## Features
 
 Dev ingress: **`http://updates.sigma.localtest.me:30080/`**
 
 - **Packages** — paginated `.deb` index with search (download links)
 - **API** — endpoint reference for clients
+
+## Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | Listen port (default `8080`) |
+| `UPDATES_PACKAGES_DIR` | Directory of `.deb` files (default `packages`, image: `/app/packages`) |
+| `UPDATES_BUNDLES_DIR` | RAUC bundle store, one `<channel>/bundle/` subdir per channel (default `bundles`, image: `/app/bundles`) |
+| `UPDATES_DBC_DIR` | Local cache for mirrored `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
+| `UPDATES_DBC_GITHUB_REPO` | GitHub `owner/repo` of the canonical schemas (default `sigmatactical-org/sigma-racer-wingman`) |
+| `UPDATES_DBC_GITHUB_PATH` | Repo subdirectory holding the schemas (default `schemas/can`) |
+| `UPDATES_VSS_DIR` | Local cache for mirrored VSS files (default `vss`, image: `/app/vss`) |
+| `UPDATES_VSS_GITHUB_PATH` | Repo subdirectory holding the VSS signal tree (default `schemas/vss`) |
+| `UPDATES_DBC_GITHUB_REF` | Git ref mirrored (default `main`) |
+| `UPDATES_DBC_SYNC_SECS` | Seconds between mirror passes (default `300`) |
+| `UPDATES_GITHUB_TOKEN` | Optional GitHub token for rate limits / private mirrors (falls back to `GITHUB_TOKEN`) |
+| `UPDATES_PUBLIC_BASE_URL` | Public base used in `bundle_url` and site links |
+| `UPDATES_DEV_VERSION` | Override the built-in dev channel version |
+| `SIGMA_INTERNAL_TOKEN` | Shared secret for publish/delete (same as other Sigma services) |
+| `UPDATES_IDENTITY_PUBLIC_URL` | Identity BFF for header nav / CSP / Publish tab |
+| `UPDATES_CONTACT_PUBLIC_URL` | Contact service (nav) |
+| `UPDATES_CART_PUBLIC_URL` | Cart service (nav) |
 
 ## API
 
@@ -46,7 +68,9 @@ for the signal tree) into local caches and prunes files removed upstream.
 There is no publish/delete API for schemas — change them in the source repo.
 When GitHub is unreachable, the cached copies keep being served.
 
-## Client library & CLI
+## Development
+
+### Client library & CLI
 
 Workspace crates:
 
@@ -73,29 +97,7 @@ and errors unless every `Depends` / `Pre-Depends` is satisfied by the remote ind
 (or by an earlier package in the same push). Use `--allow-missing-deps` only when you
 intentionally publish incomplete sets.
 
-## Configuration
-
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | Listen port (default `8080`) |
-| `UPDATES_PACKAGES_DIR` | Directory of `.deb` files (default `packages`, image: `/app/packages`) |
-| `UPDATES_BUNDLES_DIR` | RAUC bundle store, one `<channel>/bundle/` subdir per channel (default `bundles`, image: `/app/bundles`) |
-| `UPDATES_DBC_DIR` | Local cache for mirrored `.dbc` schemas (default `dbc`, image: `/app/dbc`) |
-| `UPDATES_DBC_GITHUB_REPO` | GitHub `owner/repo` of the canonical schemas (default `sigmatactical-org/sigma-racer-wingman`) |
-| `UPDATES_DBC_GITHUB_PATH` | Repo subdirectory holding the schemas (default `schemas/can`) |
-| `UPDATES_VSS_DIR` | Local cache for mirrored VSS files (default `vss`, image: `/app/vss`) |
-| `UPDATES_VSS_GITHUB_PATH` | Repo subdirectory holding the VSS signal tree (default `schemas/vss`) |
-| `UPDATES_DBC_GITHUB_REF` | Git ref mirrored (default `main`) |
-| `UPDATES_DBC_SYNC_SECS` | Seconds between mirror passes (default `300`) |
-| `UPDATES_GITHUB_TOKEN` | Optional GitHub token for rate limits / private mirrors (falls back to `GITHUB_TOKEN`) |
-| `UPDATES_PUBLIC_BASE_URL` | Public base used in `bundle_url` and site links |
-| `UPDATES_DEV_VERSION` | Override the built-in dev channel version |
-| `SIGMA_INTERNAL_TOKEN` | Shared secret for publish/delete (same as other Sigma services) |
-| `UPDATES_IDENTITY_PUBLIC_URL` | Identity BFF for header nav / CSP / Publish tab |
-| `UPDATES_CONTACT_PUBLIC_URL` | Contact service (nav) |
-| `UPDATES_CART_PUBLIC_URL` | Cart service (nav) |
-
-## Publishing packages
+### Publishing packages
 
 Writes go through one of:
 
@@ -183,7 +185,7 @@ whatever is currently on the PVC.
 Requires: `kubectl` context for the kind cluster, PVC `updates-packages`
 (10 Gi in the platform overlay), and the updates deployment in `sigma-dev`.
 
-## Local development
+### Local development
 
 ```bash
 # drop .deb files into ./packages, or publish with sigma-updates-cli
@@ -214,14 +216,7 @@ rewrites `Cargo.lock` into path form — don't commit that; `platform`'s
 Bumping a shared crate is `platform/scripts/pin-shared-revs.sh <crate>` after
 that crate is pushed, which updates every consumer's pin at once.
 
-## Docker
-
-```bash
-./scripts/docker-build.sh
-docker build -f Dockerfile build/image -t sigma-updates:local
-```
-
-## Platform (kind)
+### Platform (kind)
 
 Manifests: [platform](https://github.com/sigmatactical-org/platform) → `services/updates/`.
 
@@ -231,6 +226,13 @@ Cluster / testbed (RAUC catalog):
 export SIGMA_UPDATES_URL=http://updates.sigma.localtest.me:30080
 export SIGMA_UPDATES_CHANNEL=dev
 export SIGMA_IMAGE_VERSION=0.0.0
+```
+
+## Docker
+
+```bash
+./scripts/docker-build.sh
+docker build -f Dockerfile build/image -t sigma-updates:local
 ```
 
 ## Brand & artwork

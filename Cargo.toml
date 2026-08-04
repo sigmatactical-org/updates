@@ -53,8 +53,9 @@ bytes = { workspace = true }
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git", rev = "f34cf0eed7bb450df47bedd7dfa5bb10e5f99e47" }
-sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", rev = "1b31e85724e4de48ec5c57ecd19bebf34d87962d", default-features = false, features = ["askama", "warp"] }
+sigma-config = { git = "https://github.com/sigmatactical-org/config.git", rev = "e66ad4ed16f248b7235c149bec8bba279c7414d2" }
+sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git", rev = "2b20d1d5d5daab1771fce238946037fdde43c907" }
+sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", rev = "1b5254c46e3b6e5f271116fc61f746ca9f180612", default-features = false, features = ["askama", "warp"] }
 sigma-updates-client = { workspace = true }
 sigma-updates-deb = { workspace = true }
 thiserror = { workspace = true }
