@@ -44,22 +44,41 @@ async fn package_listing_keeps_its_wire_shape() {
 
 #[tokio::test]
 async fn dbc_download_streams_as_an_attachment() {
-    let res = warp::test::request()
-        .path("/dbc/sigma-racer.dbc")
-        .reply(&site())
-        .await;
-    assert_eq!(res.status(), 200);
-    assert_eq!(
-        res.headers().get("content-disposition").unwrap(),
-        "attachment; filename=\"sigma-racer.dbc\""
-    );
-    assert!(!res.body().is_empty());
+    // The `.dbc` catalog is a runtime mirror of GitHub (see
+    // src/dbc/github_sync.rs); nothing is committed to the repo. Seed a temp
+    // cache dir so the download route has a file to stream.
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("sigma-racer.dbc"),
+        "VERSION \"\"\n\nBO_ 100 Example: 8 ECU\n",
+    )
+    .unwrap();
+    temp_env::async_with_vars(
+        [("UPDATES_DBC_DIR", Some(dir.path().to_str().unwrap()))],
+        async {
+            // Build the route tree inside the env override: the download
+            // filter captures the cache dir when it is constructed.
+            let site = site();
 
-    let res = warp::test::request()
-        .path("/dbc/../Cargo.toml")
-        .reply(&site())
-        .await;
-    assert_eq!(res.status(), 404);
+            let res = warp::test::request()
+                .path("/dbc/sigma-racer.dbc")
+                .reply(&site)
+                .await;
+            assert_eq!(res.status(), 200);
+            assert_eq!(
+                res.headers().get("content-disposition").unwrap(),
+                "attachment; filename=\"sigma-racer.dbc\""
+            );
+            assert!(!res.body().is_empty());
+
+            let res = warp::test::request()
+                .path("/dbc/../Cargo.toml")
+                .reply(&site)
+                .await;
+            assert_eq!(res.status(), 404);
+        },
+    )
+    .await;
 }
 
 /// A streamed upload that is not a `.deb` is rejected, and nothing is left in
