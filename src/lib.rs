@@ -14,7 +14,7 @@ mod vss;
 mod web;
 
 use std::convert::Infallible;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use warp::Filter;
 use warp::Reply;
@@ -36,12 +36,8 @@ pub fn list_packages() -> Vec<DebPackage> {
 pub fn routes(
     catalog: Arc<Catalog>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Infallible> + Clone + Send + 'static {
-    // The theme's `security_headers` borrows the CSP fragment for as long as
-    // the returned filter lives, so the origin is resolved once per process.
-    static IDENTITY_ORIGIN: OnceLock<String> = OnceLock::new();
-    let identity_origin = IDENTITY_ORIGIN.get_or_init(config::identity_public_origin);
     sigma_theme::warp::security_headers(
         sigma_theme::warp::site_routes(web::routes(), api::routes(catalog)),
-        identity_origin,
+        config::identity_public_origin(),
     )
 }

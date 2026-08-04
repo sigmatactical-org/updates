@@ -1,5 +1,6 @@
 //! HTML site routes (Sigma theme).
 
+use sigma_theme::warp::internal_rejection;
 use warp::Filter;
 use warp::Rejection;
 use warp::Reply;
@@ -45,9 +46,9 @@ fn home() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone + S
                 )
             })
             .await
-            .map_err(|_| warp::reject::not_found())?;
+            .map_err(|e| internal_rejection("scan update catalogs", e))?;
             html.map(warp::reply::html)
-                .map_err(|_| warp::reject::not_found())
+                .map_err(|e| internal_rejection("render updates home page", e))
         })
 }
 
