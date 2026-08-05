@@ -54,7 +54,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock", "s
 serde = { workspace = true }
 serde_json = { workspace = true }
 sigma-config = { git = "https://github.com/sigmatactical-org/config.git", rev = "e66ad4ed16f248b7235c149bec8bba279c7414d2" }
-sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git", rev = "2b20d1d5d5daab1771fce238946037fdde43c907" }
+sigma-pg = { git = "https://github.com/sigmatactical-org/sigma-pg.git", rev = "532a31e1d0f9084b8eb8dc51083a5e6899df1b40" }
 sigma-theme = { git = "https://github.com/sigmatactical-org/sigma-theme.git", rev = "8419ea6a03fbb808f9dc50f02e8711cac9e67318", default-features = false, features = ["askama", "warp"] }
 sigma-updates-client = { workspace = true }
 sigma-updates-deb = { workspace = true }
